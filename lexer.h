@@ -1,17 +1,11 @@
 #ifndef LEXEL_H
 #define LEXEL_H
 
+#include "libzatar.h"
 #include "token.h"
-typedef struct {
-  Z_String_View source;
-  int line;
-  int column;
-  int start;
-  int end;
-} Lexer;
 
-Lexer create_lexer(Z_String_View source);
-Token lexer_next(Lexer *lexer);
-Token lexer_peek(Lexer lexer);
+typedef Z_Scanner Lexer;
+
+Token_Vec lex(Z_String_View source);
 
 #endif

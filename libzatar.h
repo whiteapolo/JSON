@@ -29,6 +29,8 @@
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
+#include <math.h>
+#include <ctype.h>
 
 // ----------------------------------------------------------------------
 //
@@ -59,6 +61,7 @@ int z_max(int a, int b);
 int z_min(int a, int b);
 int z_max3(int a, int b, int c);
 int z_min3(int a, int b, int c);
+int z_count_digits(int num);
 void z_die_format(const char *fmt, ...);
 
 int z_print_error(const char *fmt, ...);
@@ -388,6 +391,37 @@ void z_str_clear(Z_String *s);
 
 // ----------------------------------------------------------------------
 //
+//   scanner header
+//
+// ----------------------------------------------------------------------
+
+typedef struct {
+  Z_String_View source;
+  int start;
+  int end;
+  int line;
+  int column;
+} Z_Scanner;
+
+Z_Scanner z_scanner_new(Z_String_View s);
+bool z_scanner_is_at_end(Z_Scanner scanner);
+char z_scanner_advance(Z_Scanner *scanner);
+char z_scanner_peek(Z_Scanner scanner);
+bool z_scanner_check(Z_Scanner scanner, char c);
+bool z_scanner_match(Z_Scanner *scanner, char expected);
+bool z_scanner_check_string(Z_Scanner scanner, Z_String_View s);
+bool z_scanner_match_string(Z_Scanner *scanner, Z_String_View s);
+Z_String_View z_scanner_capture(Z_Scanner scanner);
+void z_scanner_reset_mark(Z_Scanner *scanner);
+void z_scanner_skip_spaces(Z_Scanner *scanner);
+int z_scanner_match_int(Z_Scanner *scanner);
+double z_scanner_match_double(Z_Scanner *scanner);
+double z_scanner_match_number(Z_Scanner *scanner);
+
+
+
+// ----------------------------------------------------------------------
+//
 //   path header
 //
 // ----------------------------------------------------------------------
@@ -552,6 +586,18 @@ int z_min(int a, int b) { return a > b ? b : a; }
 int z_min3(int a, int b, int c) { return z_min(a, z_min(b, c)); }
 
 int z_max3(int a, int b, int c) { return z_max(a, z_max(b, c)); }
+
+int z_count_digits(int num)
+{
+  int n = 0;
+
+  while (num) {
+    n++;
+    num /= 10;
+  }
+
+  return n;
+}
 
 void z_die_format(const char *fmt, ...) {
   va_list ap;
@@ -967,6 +1013,163 @@ int z_read_key() {
   }
 
   return c;
+}
+
+// ----------------------------------------------------------------------
+//
+//   scanner implementation
+//
+// ----------------------------------------------------------------------
+
+
+Z_Scanner z_scanner_new(Z_String_View source)
+{
+  Z_Scanner scanner = {
+    .source = source,
+    .start = 0,
+    .end = 0,
+    .line = 1,
+    .column = 1,
+  };
+
+  return scanner;
+}
+
+bool z_scanner_is_at_end(Z_Scanner scanner)
+{
+  return scanner.end >= scanner.source.len;
+}
+
+char z_scanner_advance(Z_Scanner *scanner)
+{
+  char c = scanner->source.ptr[scanner->end++];
+
+  if (c == '\n') {
+    scanner->line++;
+    scanner->column = 1;
+  }
+
+  return c;
+}
+
+char z_scanner_peek(Z_Scanner scanner)
+{
+  return scanner.source.ptr[scanner.end];
+}
+
+bool z_scanner_check(Z_Scanner scanner, char c)
+{
+  return z_scanner_peek(scanner) == c;
+}
+
+bool z_scanner_match(Z_Scanner *scanner, char expected)
+{
+  if (z_scanner_is_at_end(*scanner)) {
+    return false;
+  }
+
+  if (z_scanner_check(*scanner, expected)) {
+    z_scanner_advance(scanner);
+    return true;
+  }
+
+  return false;
+}
+
+bool z_scanner_check_string(Z_Scanner scanner, Z_String_View s)
+{
+  if (scanner.end + s.len > scanner.source.len) {
+    return false;
+  }
+
+  return memcmp(&scanner.source.ptr[scanner.end], s.ptr, s.len) == 0;
+}
+
+bool z_scanner_match_string(Z_Scanner *scanner, Z_String_View s)
+{
+  if (z_scanner_check_string(*scanner, s)) {
+    scanner->end += s.len;
+    return true;
+  }
+
+  return false;
+}
+
+Z_String_View z_scanner_capture(Z_Scanner scanner)
+{
+  return z_str_substring(scanner.source, scanner.start, scanner.end);
+}
+
+void z_scanner_reset_mark(Z_Scanner *scanner)
+{
+  scanner->start = scanner->end;
+}
+
+void z_scanner_skip_spaces(Z_Scanner *scanner)
+{
+  while (!z_scanner_is_at_end(*scanner) && strchr("\n\t\r ", z_scanner_peek(*scanner))) {
+    z_scanner_advance(scanner);
+  }
+}
+
+int z_scanner_match_int(Z_Scanner *scanner)
+{
+  int res = 0;
+
+  while (!z_scanner_is_at_end(*scanner) && isdigit(z_scanner_peek(*scanner))) {
+    res = 10 * res + z_scanner_advance(scanner) - '0';
+  }
+
+  return res;
+}
+
+double z_scanner_match_double(Z_Scanner *scanner)
+{
+  if (!isdigit(z_scanner_peek(*scanner))) {
+    return NAN;
+  }
+
+  int base = z_scanner_match_int(scanner);
+  int fraction = 0;
+
+  if (z_scanner_match(scanner, '.')) {
+    fraction = z_scanner_match_int(scanner);
+  }
+
+  return (double)base + (fraction / (pow(10, z_count_digits(fraction))));
+}
+
+double z_scanner_match_number(Z_Scanner *scanner)
+{
+  if (z_scanner_is_at_end(*scanner)) {
+    return NAN;
+  }
+
+  bool is_negative = false;
+  if (z_scanner_match(scanner, '-')) {
+    is_negative = true;
+  } else {
+    z_scanner_match(scanner, '+');
+  }
+
+  double num = z_scanner_match_double(scanner);
+
+  if (isnan(num)) {
+    return NAN;
+  }
+
+  if (z_scanner_match(scanner, 'e')) {
+    bool is_exponent_negative = z_scanner_match(scanner, '-') || !z_scanner_match(scanner, '+');
+
+    if (!isdigit(z_scanner_peek(*scanner))) {
+      return NAN;
+    }
+
+    int exponent = z_scanner_match_int(scanner);
+    num *= pow(10, is_exponent_negative ? -exponent : exponent);
+  }
+
+  return is_negative ? -num : num;
 }
 
 // ----------------------------------------------------------------------
@@ -1582,7 +1785,7 @@ void z_rebuild_yourself(const char *src_pathname, char **argv) {
   }
 
   Z_Cmd cmd = {0};
-  z_cmd_append(&cmd, "cc", src_pathname, "-o", argv[0]);
+  z_cmd_append(&cmd, "cc", src_pathname, "-o", argv[0], "-lm");
   int status = z_cmd_run_sync(&cmd);
 
   if (status != 0) {
