@@ -7,6 +7,11 @@
 #include <ctype.h>
 #include <math.h>
 
+bool issign(char c)
+{
+  return c == '-' || c == '+';
+}
+
 Lexer create_lexer(Z_String_View source)
 {
   return z_scanner_new(source);
@@ -19,7 +24,7 @@ Token lexer_capture_token(Lexer lexer, Token_Type type)
 
 Token lexer_capture_error(Lexer lexer)
 {
-  return create_token(TOKEN_TYPE_ERROR, z_scanner_capture(lexer), lexer.line, lexer.column);
+  return lexer_capture_token(lexer, TOKEN_TYPE_ERROR);
 }
 
 Token lexer_string(Lexer *lexer)
@@ -59,9 +64,11 @@ Token lexer_next(Lexer *lexer)
     return create_eof_token(lexer->line, lexer->column);
   }
 
-  char c = z_scanner_advance(lexer);
+  if (isdigit(z_scanner_peek(*lexer)) || issign(z_scanner_peek(*lexer))) {
+      return lexer_number(lexer);
+  }
 
-  switch (c) {
+  switch (z_scanner_advance(lexer)) {
     case ',': return lexer_capture_token(*lexer, TOKEN_TYPE_COMMA);
     case '{': return lexer_capture_token(*lexer, TOKEN_TYPE_OPEN_BRACE);
     case '}': return lexer_capture_token(*lexer, TOKEN_TYPE_CLOSE_BRACE);
@@ -69,15 +76,7 @@ Token lexer_next(Lexer *lexer)
     case ']': return lexer_capture_token(*lexer, TOKEN_TYPE_CLOSE_BRACKET);
     case ':': return lexer_capture_token(*lexer, TOKEN_TYPE_COLON);
     case '"': return lexer_string(lexer);
-
-    case '-': case '+':
-    case '0': case '1': case '2': case '3': case '4':
-    case '5': case '6': case '7': case '8': case '9':
-        lexer->end--;
-        return lexer_number(lexer);
-
-    default:
-        return lexer_capture_error(*lexer);
+    default: return lexer_capture_error(*lexer);
   }
 }
 
@@ -89,12 +88,12 @@ Token_Vec lex(Z_String_View source)
   Token token = lexer_next(&lexer);
 
   while (token.type != TOKEN_TYPE_EOF) {
-    z_da_append(&tokens, token);
 
     if (token.type == TOKEN_TYPE_ERROR) {
       tokens.had_errors = true;
     }
 
+    z_da_append(&tokens, token);
     token = lexer_next(&lexer);
   }
 

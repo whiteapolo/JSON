@@ -349,8 +349,8 @@ void z_str_replace(Z_String *s, Z_String_View target,
                    Z_String_View replacement);
 void z_str_trim(Z_String *s);
 void z_str_trim_cset(Z_String *s, Z_String_View cset);
-Z_String_View z_str_view_trim(Z_String_View s);
-Z_String_View z_str_view_trim_cset(Z_String_View s, Z_String_View cset);
+Z_String_View z_sv_trim(Z_String_View s);
+Z_String_View z_sv_trim_cset(Z_String_View s, Z_String_View cset);
 
 char z_str_top_char(Z_String_View s);
 int z_sv_compare(Z_String_View s1, Z_String_View s2);
@@ -382,7 +382,7 @@ bool z_sv_split_next(Z_String_View s, Z_String_View delim,
 Z_String_View z_sv_split_part(Z_String_View s, Z_String_View delim, int n);
 Z_String_View z_str_substring(Z_String_View s, int start, int end);
 
-const char *z_str_end(Z_String_View s);
+const char *z_sv_end(Z_String_View s);
 
 void z_sv_print(Z_String_View s);
 void z_sv_println(Z_String_View s);
@@ -1112,6 +1112,16 @@ void z_scanner_skip_spaces(Z_Scanner *scanner)
   }
 }
 
+int z_scanner_match_sign(Z_Scanner *scanner)
+{
+  if (z_scanner_match(scanner, '-')) {
+    return -1;
+  }
+
+  z_scanner_match(scanner, '+');
+  return 1;
+}
+
 int z_scanner_match_int(Z_Scanner *scanner)
 {
   int res = 0;
@@ -1139,37 +1149,42 @@ double z_scanner_match_double(Z_Scanner *scanner)
   return (double)base + (fraction / (pow(10, z_count_digits(fraction))));
 }
 
-double z_scanner_match_number(Z_Scanner *scanner)
+double z_scanner_match_signed_double(Z_Scanner *scanner)
 {
-  if (z_scanner_is_at_end(*scanner)) {
+  int sign = z_scanner_match_sign(scanner);
+  if (z_scanner_is_at_end(*scanner) || !isdigit(z_scanner_peek(*scanner))) {
     return NAN;
   }
 
-  bool is_negative = false;
-  if (z_scanner_match(scanner, '-')) {
-    is_negative = true;
-  } else {
-    z_scanner_match(scanner, '+');
+  return sign * z_scanner_match_double(scanner);
+}
+
+double z_scanner_match_number(Z_Scanner *scanner)
+{
+  Z_Scanner tmp = *scanner;
+
+  if (z_scanner_is_at_end(tmp)) {
+    return NAN;
   }
 
-  double num = z_scanner_match_double(scanner);
+  double num = z_scanner_match_signed_double(&tmp);
 
   if (isnan(num)) {
     return NAN;
   }
 
-  if (z_scanner_match(scanner, 'e')) {
-    bool is_exponent_negative = z_scanner_match(scanner, '-') || !z_scanner_match(scanner, '+');
+  if (z_scanner_match(&tmp, 'e')) {
+    double exponent = z_scanner_match_signed_double(&tmp);
 
-    if (!isdigit(z_scanner_peek(*scanner))) {
+    if (isnan(exponent)) {
       return NAN;
     }
 
-    int exponent = z_scanner_match_int(scanner);
-    num *= pow(10, is_exponent_negative ? -exponent : exponent);
+    num *= pow(10, exponent);
   }
 
-  return is_negative ? -num : num;
+  *scanner = tmp;
+  return num;
 }
 
 // ----------------------------------------------------------------------
@@ -1633,7 +1648,7 @@ Z_String_View z_sv_split_start(Z_String_View s, Z_String_View delim) {
 bool z_sv_split_next(Z_String_View s, Z_String_View delim,
                      Z_String_View *slice) {
   int len = 0;
-  int start = z_str_end(*slice) - s.ptr + delim.len;
+  int start = z_sv_end(*slice) - s.ptr + delim.len;
 
   if (start > s.len) {
     return false;
@@ -1670,21 +1685,21 @@ Z_String_View z_str_substring(Z_String_View s, int start, int end) {
   return Z_SV(s.ptr + start, end - start);
 }
 
-const char *z_str_end(Z_String_View s) { return s.ptr + s.len; }
+const char *z_sv_end(Z_String_View s) { return s.ptr + s.len; }
 
 void z_str_trim(Z_String *s) { z_str_trim_cset(s, Z_CSTR(" \f\t\v\n\r")); }
 
 void z_str_trim_cset(Z_String *s, Z_String_View cset) {
-  Z_String_View trimmed = z_str_view_trim_cset(Z_STR(*s), cset);
+  Z_String_View trimmed = z_sv_trim_cset(Z_STR(*s), cset);
   memmove(s->ptr, trimmed.ptr, trimmed.len);
   s->len = trimmed.len;
 }
 
-Z_String_View z_str_view_trim(Z_String_View s) {
-  return z_str_view_trim_cset(s, Z_CSTR(" \f\t\v\n\r"));
+Z_String_View z_sv_trim(Z_String_View s) {
+  return z_sv_trim_cset(s, Z_CSTR(" \f\t\v\n\r"));
 }
 
-Z_String_View z_str_view_trim_cset(Z_String_View s, Z_String_View cset) {
+Z_String_View z_sv_trim_cset(Z_String_View s, Z_String_View cset) {
   if (s.len == 0) {
     return Z_EMPTY_SV();
   }
