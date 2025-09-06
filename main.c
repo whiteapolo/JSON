@@ -1,10 +1,11 @@
 #include "lexer.h"
 #include "token.h"
-#define LIBZATAR_IMPLEMENTATION
-#include "libzatar.h"
-
+#include "parser.h"
 #include <stdbool.h>
 #include <stdio.h>
+
+#define LIBZATAR_IMPLEMENTATION
+#include "libzatar.h"
 
 int main(void)
 {
@@ -17,3 +18,4 @@ int main(void)
 
   return 0;
 }
+

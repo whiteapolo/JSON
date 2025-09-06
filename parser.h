@@ -2,26 +2,32 @@
 #define PARSER_H
 
 #include "libzatar.h"
+#include "token.h"
+
 typedef enum {
   JSON_OBJECT,
   JSON_STRING,
   JSON_NUMBER,
-} Json_Value_Type;
+} Json_Item_Type;
+
+typedef struct Json_Item Json_Item;
 
 typedef struct {
-  Json_Value *ptr;
-  int len;
-  int cap;
-} Json_Value_Array;
+    Json_Item *ptr;
+    int len;
+    int cap;
+} Json_Item_Array;
 
-typedef struct {
-  Json_Value_Type type;
-  union {
-    Z_Map keys;             // object
-    char *string;           // string
-    double number;          // number
-    Json_Value_Array array; // array
-  }
-} Json_Value;
+struct Json_Item {
+    Json_Item_Type type;
+    union {
+        Z_Map keys;
+        char *string;
+        double number;
+        Json_Item_Array array;
+    };
+};
+
+Json_Item *json_parse(Token_Vec tokens);
 
 #endif

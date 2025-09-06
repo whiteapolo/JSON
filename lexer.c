@@ -19,7 +19,12 @@ Lexer create_lexer(Z_String_View source)
 
 Token lexer_capture_token(Lexer lexer, Token_Type type)
 {
-  return create_token(type, z_scanner_capture(lexer), lexer.line, lexer.column);
+  return create_token(type, z_scanner_capture(lexer), lexer.line, lexer.column, 0);
+}
+
+Token lexer_capture_number_token(Lexer lexer, double number_value)
+{
+  return create_token(TOKEN_TYPE_NUMBER, z_scanner_capture(lexer), lexer.line, lexer.column, number_value);
 }
 
 Token lexer_capture_error(Lexer lexer)
@@ -44,17 +49,6 @@ Token lexer_string(Lexer *lexer)
   return token;
 }
 
-Token lexer_number(Lexer *lexer)
-{
-  double num = z_scanner_match_number(lexer);
-
-  if (isnan(num)) {
-    return lexer_capture_error(*lexer);
-  }
-
-  return lexer_capture_token(*lexer, TOKEN_TYPE_NUMBER);
-}
-
 Token lexer_next(Lexer *lexer)
 {
   z_scanner_skip_spaces(lexer);
@@ -64,8 +58,9 @@ Token lexer_next(Lexer *lexer)
     return create_eof_token(lexer->line, lexer->column);
   }
 
-  if (isdigit(z_scanner_peek(*lexer)) || issign(z_scanner_peek(*lexer))) {
-      return lexer_number(lexer);
+  double num;
+  if (z_scanner_match_number(lexer, &num)) {
+    return lexer_capture_number_token(*lexer, num);
   }
 
   switch (z_scanner_advance(lexer)) {

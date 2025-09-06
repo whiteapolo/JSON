@@ -18,9 +18,10 @@ typedef enum {
 
 typedef struct {
   Token_Type type;
-  Z_String_View lexeme;
   int line;
   int column;
+  Z_String_View lexeme;
+  double number_value;
 } Token;
 
 typedef struct {
@@ -30,7 +31,7 @@ typedef struct {
   bool had_errors;
 } Token_Vec;
 
-Token create_token(Token_Type type, Z_String_View lexeme, int line, int column);
+Token create_token(Token_Type type, Z_String_View lexeme, int line, int column, double number_value);
 Token create_eof_token(int line, int column);
 void print_tokens(Token_Vec tokens);
 void print_token(Token token);

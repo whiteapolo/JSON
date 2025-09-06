@@ -414,9 +414,11 @@ bool z_scanner_match_string(Z_Scanner *scanner, Z_String_View s);
 Z_String_View z_scanner_capture(Z_Scanner scanner);
 void z_scanner_reset_mark(Z_Scanner *scanner);
 void z_scanner_skip_spaces(Z_Scanner *scanner);
-int z_scanner_match_int(Z_Scanner *scanner);
-double z_scanner_match_double(Z_Scanner *scanner);
-double z_scanner_match_number(Z_Scanner *scanner);
+double z_build_double(int base, int fraction);
+bool z_scanner_match_int(Z_Scanner *scanner, int *num);
+bool z_scanner_match_signed_int(Z_Scanner *scanner, int *num);
+bool z_scanner_match_signed_double(Z_Scanner *scanner, double *num);
+bool z_scanner_match_number(Z_Scanner *scanner, double *num);
 
 
 
@@ -1122,69 +1124,98 @@ int z_scanner_match_sign(Z_Scanner *scanner)
   return 1;
 }
 
-int z_scanner_match_int(Z_Scanner *scanner)
+bool z_scanner_match_int(Z_Scanner *scanner, int *num)
 {
+  if (!isdigit(z_scanner_peek(*scanner))) {
+    return false;
+  }
+
   int res = 0;
 
   while (!z_scanner_is_at_end(*scanner) && isdigit(z_scanner_peek(*scanner))) {
     res = 10 * res + z_scanner_advance(scanner) - '0';
   }
 
-  return res;
+  *num = res;
+  return true;
 }
 
-double z_scanner_match_double(Z_Scanner *scanner)
+bool z_scanner_match_signed_int(Z_Scanner *scanner, int *num)
 {
-  if (!isdigit(z_scanner_peek(*scanner))) {
-    return NAN;
+  Z_Scanner tmp = *scanner;
+  int sign = z_scanner_match_sign(&tmp);
+
+  if (!z_scanner_match_int(&tmp, num)) {
+    return false;
   }
 
-  int base = z_scanner_match_int(scanner);
-  int fraction = 0;
-
-  if (z_scanner_match(scanner, '.')) {
-    fraction = z_scanner_match_int(scanner);
-  }
-
-  return (double)base + (fraction / (pow(10, z_count_digits(fraction))));
+  *scanner = tmp;
+  *num *= sign;
+  return true;
 }
 
-double z_scanner_match_signed_double(Z_Scanner *scanner)
+double z_build_double(int base, int fraction)
 {
-  int sign = z_scanner_match_sign(scanner);
-  if (z_scanner_is_at_end(*scanner) || !isdigit(z_scanner_peek(*scanner))) {
-    return NAN;
+  double fraction_double = fraction;
+
+  while (fraction_double > 1) {
+    fraction_double /= 10;
   }
 
-  return sign * z_scanner_match_double(scanner);
+  return base + fraction_double;
 }
 
-double z_scanner_match_number(Z_Scanner *scanner)
+bool z_scanner_match_signed_double(Z_Scanner *scanner, double *num)
+{
+  Z_Scanner tmp = *scanner;
+
+  if (!isdigit(z_scanner_peek(tmp))) {
+    return false;
+  }
+
+  int base;
+  int fraction;
+
+  if (!z_scanner_match_signed_int(&tmp, &base)) {
+    return false;
+  }
+
+  if (z_scanner_match(&tmp, '.')) {
+    if (!z_scanner_match_int(&tmp, &fraction)) {
+      return false;
+    }
+  }
+
+  *num = z_build_double(base, fraction);
+  *scanner = tmp;
+
+  return true;
+}
+
+bool z_scanner_match_number(Z_Scanner *scanner, double *num)
 {
   Z_Scanner tmp = *scanner;
 
   if (z_scanner_is_at_end(tmp)) {
-    return NAN;
+    return false;
   }
 
-  double num = z_scanner_match_signed_double(&tmp);
-
-  if (isnan(num)) {
-    return NAN;
+  double base;
+  if (!z_scanner_match_signed_double(&tmp, &base)) {
+    return false;
   }
 
   if (z_scanner_match(&tmp, 'e')) {
-    double exponent = z_scanner_match_signed_double(&tmp);
-
-    if (isnan(exponent)) {
-      return NAN;
+    double exponent;
+    if (!z_scanner_match_signed_double(&tmp, &exponent)) {
+      return false;
     }
 
-    num *= pow(10, exponent);
+    *num *= pow(10, exponent);
   }
 
   *scanner = tmp;
-  return num;
+  return true;
 }
 
 // ----------------------------------------------------------------------

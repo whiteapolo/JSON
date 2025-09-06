@@ -1,12 +1,13 @@
 #include "token.h"
 
-Token create_token(Token_Type type, Z_String_View lexeme, int line, int column)
+Token create_token(Token_Type type, Z_String_View lexeme, int line, int column, double number_value)
 {
   Token token = {
     .type = type,
     .lexeme = lexeme,
     .line = line,
     .column = column,
+    .number_value = number_value,
   };
 
   return token;
@@ -41,9 +42,9 @@ const char *token_type_to_string(Token_Type type) {
 
 void print_token(Token token)
 {
-    printf("{ type: \"%s\", lexeme: \"", token_type_to_string(token.type));
+    printf("{type: \"%s\", lexeme: \"", token_type_to_string(token.type));
     z_sv_print(token.lexeme);
-    printf("\", line: %d, col: %d }\n", token.line, token.column);
+    printf("\", line: %d, col: %d}\n", token.line, token.column);
 }
 
 void print_tokens(Token_Vec tokens)
