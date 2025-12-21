@@ -1169,10 +1169,6 @@ bool z_scanner_match_signed_double(Z_Scanner *scanner, double *num)
 {
   Z_Scanner tmp = *scanner;
 
-  if (!isdigit(z_scanner_peek(tmp))) {
-    return false;
-  }
-
   int base;
   int fraction;
 

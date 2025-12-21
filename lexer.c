@@ -49,6 +49,51 @@ Token lexer_string(Lexer *lexer)
   return token;
 }
 
+bool is_number_character(char c)
+{
+  return isdigit(c) || strchr(".e-+", c);
+}
+
+double string_to_number(Z_String_View s)
+{
+  char *nptr = z_sv_to_cstr(s);
+  char *endptr = NULL;
+  double value = strtod(nptr, &endptr);
+
+  if (nptr == endptr) {
+    free(nptr);
+    return NAN;
+  }
+
+  free(nptr);
+  return value;
+}
+
+Token lexer_number(Lexer *lexer)
+{
+  while (!z_scanner_is_at_end(*lexer) && is_number_character(z_scanner_peek(*lexer))) {
+    z_scanner_advance(lexer);
+  }
+
+  Z_String_View lexeme = z_scanner_capture(*lexer);
+  double value = string_to_number(lexeme);
+
+  if (isnan(value)) {
+    return lexer_capture_error(*lexer);
+  }
+
+  return lexer_capture_number_token(*lexer, value);
+}
+
+Token lexer_unknown(Lexer *lexer)
+{
+  while (!z_scanner_is_at_end(*lexer) && z_scanner_peek(*lexer) == '\n') {
+    z_scanner_advance(lexer);
+  }
+
+  return lexer_capture_error(*lexer);
+}
+
 Token lexer_next(Lexer *lexer)
 {
   z_scanner_skip_spaces(lexer);
@@ -58,12 +103,13 @@ Token lexer_next(Lexer *lexer)
     return create_eof_token(lexer->line, lexer->column);
   }
 
-  double num;
-  if (z_scanner_match_number(lexer, &num)) {
-    return lexer_capture_number_token(*lexer, num);
+  char c = z_scanner_advance(lexer);
+
+  if (is_number_character(c)) {
+    return lexer_number(lexer);
   }
 
-  switch (z_scanner_advance(lexer)) {
+  switch (c) {
     case ',': return lexer_capture_token(*lexer, TOKEN_TYPE_COMMA);
     case '{': return lexer_capture_token(*lexer, TOKEN_TYPE_OPEN_BRACE);
     case '}': return lexer_capture_token(*lexer, TOKEN_TYPE_CLOSE_BRACE);
@@ -71,7 +117,7 @@ Token lexer_next(Lexer *lexer)
     case ']': return lexer_capture_token(*lexer, TOKEN_TYPE_CLOSE_BRACKET);
     case ':': return lexer_capture_token(*lexer, TOKEN_TYPE_COLON);
     case '"': return lexer_string(lexer);
-    default: return lexer_capture_error(*lexer);
+    default: return lexer_unknown(lexer);
   }
 }
 
