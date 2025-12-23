@@ -1,11 +1,13 @@
 #ifndef LEXEL_H
 #define LEXEL_H
 
-#include "libzatar.h"
 #include "token.h"
 
-typedef Z_Scanner Lexer;
+typedef struct {
+  Token_Array tokens;
+  bool had_errors;
+} Lexer_Result;
 
-Token_Array lex(Z_String_View source);
+Lexer_Result lex(Z_Heap *heap, Z_String_View source);
 
 #endif

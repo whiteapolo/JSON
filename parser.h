@@ -1,8 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "libzatar.h"
 #include "token.h"
+#include <z_map.h>
+#include <z_array.h>
 
 typedef enum {
   JSON_OBJECT,
@@ -13,22 +14,18 @@ typedef enum {
 
 typedef struct Json_Item Json_Item;
 
-typedef struct {
-    Json_Item **ptr;
-    int len;
-    int cap;
-} Json_Item_Array;
+Z_DEFINE_ARRAY(Json_Item_Array, Json_Item *);
 
 struct Json_Item {
     Json_Item_Type type;
     union {
         Z_Map key_value_pairs;
-        char *string;
+        Z_String_View string;
         double number;
         Json_Item_Array array;
     };
 };
 
-Json_Item *json_parse(Token_Array tokens);
+Json_Item *json_parse(Z_Heap *heap, Token_Array tokens);
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-#include "libzatar.h"
+#include <z_string.h>
 
 typedef enum {
   TOKEN_TYPE_OPEN_BRACE,
@@ -24,12 +24,7 @@ typedef struct {
   double number_value;
 } Token;
 
-typedef struct {
-  Token *ptr;
-  int len;
-  int cap;
-  bool had_errors;
-} Token_Array;
+Z_DEFINE_ARRAY(Token_Array, Token);
 
 Token create_token(Token_Type type, Z_String_View lexeme, int line, int column, double number_value);
 Token create_eof_token(int line, int column);

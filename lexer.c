@@ -1,49 +1,36 @@
 #include "lexer.h"
-#include "libzatar.h"
 #include "token.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
 #include <math.h>
+#include <z_scanner.h>
 
-bool issign(char c)
+Token lexer_capture_token(const Z_Scanner *scanner, Token_Type type)
 {
-  return c == '-' || c == '+';
+  return create_token(type, z_scanner_capture(scanner), scanner->line, scanner->column, 0);
 }
 
-Lexer create_lexer(Z_String_View source)
+Token lexer_capture_number_token(const Z_Scanner *scanner, double number_value)
 {
-  return z_scanner_new(source);
+  return create_token(TOKEN_TYPE_NUMBER, z_scanner_capture(scanner), scanner->line, scanner->column, number_value);
 }
 
-Token lexer_capture_token(Lexer lexer, Token_Type type)
+Token lexer_capture_error(const Z_Scanner *scanner)
 {
-  return create_token(type, z_scanner_capture(lexer), lexer.line, lexer.column, 0);
+  return lexer_capture_token(scanner, TOKEN_TYPE_ERROR);
 }
 
-Token lexer_capture_number_token(Lexer lexer, double number_value)
+Token lexer_string(Z_Scanner *scanner)
 {
-  return create_token(TOKEN_TYPE_NUMBER, z_scanner_capture(lexer), lexer.line, lexer.column, number_value);
-}
+  z_scanner_reset_mark(scanner);
+  z_scanner_advance_until(scanner, '"');
 
-Token lexer_capture_error(Lexer lexer)
-{
-  return lexer_capture_token(lexer, TOKEN_TYPE_ERROR);
-}
+  Token token = lexer_capture_token(scanner, TOKEN_TYPE_STRING);
 
-Token lexer_string(Lexer *lexer)
-{
-  z_scanner_reset_mark(lexer);
-
-  while (!z_scanner_is_at_end(*lexer) && !z_scanner_check(*lexer, '"')) {
-    z_scanner_advance(lexer);
-  }
-
-  Token token = lexer_capture_token(*lexer, TOKEN_TYPE_STRING);
-
-  if (!z_scanner_match(lexer, '"')) {
-    return lexer_capture_error(*lexer);
+  if (!z_scanner_match(scanner, '"')) {
+    return lexer_capture_error(scanner);
   }
 
   return token;
@@ -56,7 +43,7 @@ bool is_number_character(char c)
 
 double string_to_number(Z_String_View s)
 {
-  char *nptr = z_sv_to_cstr(s);
+  char *nptr = strndup(s.ptr, s.length);
   char *endptr = NULL;
   double value = strtod(nptr, &endptr);
 
@@ -69,76 +56,76 @@ double string_to_number(Z_String_View s)
   return value;
 }
 
-Token lexer_number(Lexer *lexer)
+Token lexer_number(Z_Scanner *scanner)
 {
-  while (!z_scanner_is_at_end(*lexer) && is_number_character(z_scanner_peek(*lexer))) {
-    z_scanner_advance(lexer);
+  while (!z_scanner_is_at_end(scanner) && is_number_character(z_scanner_peek(scanner))) {
+    z_scanner_advance(scanner, 1);
   }
 
-  Z_String_View lexeme = z_scanner_capture(*lexer);
+  Z_String_View lexeme = z_scanner_capture(scanner);
   double value = string_to_number(lexeme);
 
   if (isnan(value)) {
-    return lexer_capture_error(*lexer);
+    return lexer_capture_error(scanner);
   }
 
-  return lexer_capture_number_token(*lexer, value);
+  return lexer_capture_number_token(scanner, value);
 }
 
-Token lexer_unknown(Lexer *lexer)
+Token lexer_unknown(Z_Scanner *scanner)
 {
-  while (!z_scanner_is_at_end(*lexer) && z_scanner_peek(*lexer) == '\n') {
-    z_scanner_advance(lexer);
-  }
-
-  return lexer_capture_error(*lexer);
+  z_scanner_advance_until(scanner, '\n');
+  return lexer_capture_error(scanner);
 }
 
-Token lexer_next(Lexer *lexer)
+Token lexer_next(Z_Scanner *scanner)
 {
-  z_scanner_skip_spaces(lexer);
-  z_scanner_reset_mark(lexer);
+  z_scanner_skip_spaces(scanner);
+  z_scanner_reset_mark(scanner);
 
-  if (z_scanner_is_at_end(*lexer)) {
-    return create_eof_token(lexer->line, lexer->column);
+  if (z_scanner_is_at_end(scanner)) {
+    return create_eof_token(scanner->line, scanner->column);
   }
 
-  char c = z_scanner_advance(lexer);
+  char c = z_scanner_peek(scanner);
+  z_scanner_advance(scanner, 1);
 
   if (is_number_character(c)) {
-    return lexer_number(lexer);
+    return lexer_number(scanner);
   }
 
   switch (c) {
-    case ',': return lexer_capture_token(*lexer, TOKEN_TYPE_COMMA);
-    case '{': return lexer_capture_token(*lexer, TOKEN_TYPE_OPEN_BRACE);
-    case '}': return lexer_capture_token(*lexer, TOKEN_TYPE_CLOSE_BRACE);
-    case '[': return lexer_capture_token(*lexer, TOKEN_TYPE_OPEN_BRACKET);
-    case ']': return lexer_capture_token(*lexer, TOKEN_TYPE_CLOSE_BRACKET);
-    case ':': return lexer_capture_token(*lexer, TOKEN_TYPE_COLON);
-    case '"': return lexer_string(lexer);
-    default: return lexer_unknown(lexer);
+    case ',': return lexer_capture_token(scanner, TOKEN_TYPE_COMMA);
+    case '{': return lexer_capture_token(scanner, TOKEN_TYPE_OPEN_BRACE);
+    case '}': return lexer_capture_token(scanner, TOKEN_TYPE_CLOSE_BRACE);
+    case '[': return lexer_capture_token(scanner, TOKEN_TYPE_OPEN_BRACKET);
+    case ']': return lexer_capture_token(scanner, TOKEN_TYPE_CLOSE_BRACKET);
+    case ':': return lexer_capture_token(scanner, TOKEN_TYPE_COLON);
+    case '"': return lexer_string(scanner);
+    default: return lexer_unknown(scanner);
   }
 }
 
-Token_Array lex(Z_String_View source)
+Lexer_Result lex(Z_Heap *heap, Z_String_View source)
 {
-  Lexer lexer = create_lexer(source);
-  Token_Array tokens = {0};
-
-  Token token = lexer_next(&lexer);
+  Lexer_Result result = {
+    .had_errors = false,
+    .tokens = z_array_new(heap, Token_Array),
+  };
+  
+  Z_Scanner scanner = z_scanner_new(source);
+  Token token = lexer_next(&scanner);
 
   while (token.type != TOKEN_TYPE_EOF) {
 
     if (token.type == TOKEN_TYPE_ERROR) {
-      tokens.had_errors = true;
+      result.had_errors = true;
     }
 
-    z_da_append(&tokens, token);
-    token = lexer_next(&lexer);
+    z_array_push(&result.tokens, token);
+    token = lexer_next(&scanner);
   }
 
-  z_da_append(&tokens, token);
-
-  return tokens;
+  z_array_push(&result.tokens, token);
+  return result;
 }

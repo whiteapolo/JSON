@@ -1,4 +1,5 @@
 #include "token.h"
+#include <stdio.h>
 
 Token create_token(Token_Type type, Z_String_View lexeme, int line, int column, double number_value)
 {
@@ -42,29 +43,19 @@ const char *token_type_to_string(Token_Type type) {
 
 void print_token(Token token)
 {
-  if (token.type == TOKEN_TYPE_NUMBER) {
-    printf("{ type: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %d, col: %d }\n",
-        token_type_to_string(token.type),
-        token.lexeme.len,
-        token.lexeme.ptr,
-        token.number_value,
-        token.line,
-        token.column
-    );
-  } else {
-    printf("{ type: \"%s\", lexeme: \"%.*s\", line: %d, col: %d }\n",
-        token_type_to_string(token.type),
-        token.lexeme.len,
-        token.lexeme.ptr,
-        token.line,
-        token.column
-    );
-  }
+  printf("{ type: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %d, col: %d }\n",
+      token_type_to_string(token.type),
+      (int)token.lexeme.length,
+      token.lexeme.ptr,
+      token.number_value,
+      token.line,
+      token.column
+  );
 }
 
 void print_tokens(Token_Array tokens)
 {
-  z_da_foreach(Token*, token, &tokens) {
-    print_token(*token);
+  for (size_t i = 0; i < tokens.length; i++) {
+    print_token(tokens.ptr[i]);
   }
 }

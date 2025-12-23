@@ -1,4 +1,6 @@
 #include "print_json.h"
+#include <stdio.h>
+#include <z_map.h>
 
 void print_json_key_value(Z_Map map);
 void print_json_value(Json_Item *value);
@@ -6,19 +8,13 @@ void print_json_object(Json_Item *json);
 
 void print_json_array(Json_Item_Array array)
 {
-  if (array.len == 0) {
-    printf("[]");
-    return;
-  }
-
   printf("[ ");
-  for (int i = 0; i < array.len - 1; i++) {
+  for (size_t i = 0; i < array.length - 1; i++) {
     print_json_value(array.ptr[i]);
-    printf(", ");
+    if (i != array.length - 1) {
+      printf(", ");
+    }
   }
-
-  print_json_value(array.ptr[array.len - 1]);
-
   printf("]");
 }
 
@@ -30,7 +26,9 @@ void print_json_value(Json_Item *value)
       printf("%lf", value->number);
       break;
     case JSON_STRING:
-      printf("\"%s\"", value->string);
+      printf("\"");
+      z_sv_print(value->string);
+      printf("\"");
       break;
     case JSON_ARRAY:
       print_json_array(value->array);
@@ -41,17 +39,18 @@ void print_json_value(Json_Item *value)
   }
 }
 
-void print_key_value_pairs(void *key, void *value, void *arg)
-{
-  (void)arg;
-  printf("\"%s\": ", (char *)key);
-  print_json_value(value);
-  printf(", ");
-}
-
 void print_json_key_value(Z_Map map)
 {
-  z_map_order_traverse(&map, print_key_value_pairs, NULL);
+  Z_Heap_Auto heap = {0};
+  Z_Key_Value_Array pairs = z_map_to_array(&heap, &map);
+
+  for (size_t i = 0; i < pairs.length; i++) {
+    printf("\"%s\": ", (char *)pairs.ptr[i].key);
+    print_json_value(pairs.ptr[i].value);
+    if (i != pairs.length - 1) {
+      printf(", ");
+    }
+  }
 }
 
 void print_json_object(Json_Item *json)
@@ -60,7 +59,6 @@ void print_json_object(Json_Item *json)
   print_json_key_value(json->key_value_pairs);
   printf(" }");
 }
-
 
 void print_json(Json_Item *json)
 {

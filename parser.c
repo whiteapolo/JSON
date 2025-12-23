@@ -1,9 +1,10 @@
 #include "parser.h"
-#include "libzatar.h"
 #include "token.h"
 #include <string.h>
+#include <stdio.h>
 
 typedef struct {
+  Z_Heap *heap;
   Token_Array tokens;
   int curr;
   bool had_error;
@@ -12,9 +13,10 @@ typedef struct {
 Json_Item *json_parse_object(Parser_State *parser);
 Json_Item *json_parse_value(Parser_State *parser);
 
-Parser_State create_parser(Token_Array tokens)
+Parser_State create_parser(Z_Heap *heap, Token_Array tokens)
 {
   Parser_State parser = {
+    .heap = heap,
     .curr = 0,
     .had_error = false,
     .tokens = tokens,
@@ -23,36 +25,36 @@ Parser_State create_parser(Token_Array tokens)
   return parser;
 }
 
-Json_Item *create_json_item_object(Z_Map key_value_pairs)
+Json_Item *create_json_item_object(Parser_State *parser, Z_Map key_value_pairs)
 {
-  Json_Item *json_item = malloc(sizeof(Json_Item));
+  Json_Item *json_item = z_heap_malloc(parser->heap, sizeof(Json_Item));
   json_item->type = JSON_OBJECT;
   json_item->key_value_pairs = key_value_pairs;
 
   return json_item;
 }
 
-Json_Item *create_json_item_number(double number)
+Json_Item *create_json_item_number(Parser_State *parser, double number)
 {
-  Json_Item *json_item = malloc(sizeof(Json_Item));
+  Json_Item *json_item = z_heap_malloc(parser->heap, sizeof(Json_Item));
   json_item->type = JSON_NUMBER;
   json_item->number = number;
 
   return json_item;
 }
 
-Json_Item *create_json_item_string(Z_String_View s)
+Json_Item *create_json_item_string(Parser_State *parser, Z_String_View s)
 {
-  Json_Item *json_item = malloc(sizeof(Json_Item));
+  Json_Item *json_item = z_heap_malloc(parser->heap, sizeof(Json_Item));
   json_item->type = JSON_STRING;
-  json_item->string = z_sv_to_cstr(s);
+  json_item->string = s;
 
   return json_item;
 }
 
-Json_Item *create_json_item_array(Json_Item_Array array)
+Json_Item *create_json_item_array(Parser_State *parser, Json_Item_Array array)
 {
-  Json_Item *json_item = malloc(sizeof(Json_Item));
+  Json_Item *json_item = z_heap_malloc(parser->heap, sizeof(Json_Item));
   json_item->type = JSON_ARRAY;
   json_item->array = array;
 
@@ -119,7 +121,7 @@ void parse_error(Parser_State *parser, const char *what_parser_expected)
   Token found = peek(*parser);
   advance(parser);
   parser->had_error = true;
-  printf("%s, But found: '%.*s'", what_parser_expected, found.lexeme.len, found.lexeme.ptr);
+  printf("%s, But found: '%.*s'", what_parser_expected, (int)found.lexeme.length, found.lexeme.ptr);
 }
 
 Json_Item *json_parse_array(Parser_State *parser)
@@ -129,10 +131,11 @@ Json_Item *json_parse_array(Parser_State *parser)
     return NULL;
   }
 
-  Json_Item_Array array = {0};
+
+  Json_Item_Array array = z_array_new(parser->heap, Json_Item_Array);
 
   do {
-    z_da_append(&array, json_parse_value(parser));
+    z_array_push(&array, json_parse_value(parser));
   } while (match(parser, TOKEN_TYPE_COMMA));
 
   if (!match(parser, TOKEN_TYPE_CLOSE_BRACKET)) {
@@ -140,7 +143,7 @@ Json_Item *json_parse_array(Parser_State *parser)
     return NULL;
   }
 
-  return create_json_item_array(array);
+  return create_json_item_array(parser, array);
 }
 
 Json_Item *json_parse_value(Parser_State *parser)
@@ -150,11 +153,11 @@ Json_Item *json_parse_value(Parser_State *parser)
   }
 
   if (match(parser, TOKEN_TYPE_NUMBER)) {
-    return create_json_item_number(previous(*parser).number_value);
+    return create_json_item_number(parser, previous(*parser).number_value);
   }
 
   if (match(parser, TOKEN_TYPE_STRING)) {
-    return create_json_item_string(previous(*parser).lexeme);
+    return create_json_item_string(parser, previous(*parser).lexeme);
   }
 
   if (check(*parser, TOKEN_TYPE_OPEN_BRACKET)) {
@@ -176,7 +179,7 @@ void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
     return;
   }
 
-  Z_String_View key = advance(parser).lexeme;
+  Token key = advance(parser);
 
   if (!match(parser, TOKEN_TYPE_COLON)) {
     parse_error(parser, "Expected ':'");
@@ -184,7 +187,7 @@ void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
   }
 
   Json_Item *value = json_parse_value(parser);
-  z_map_put(key_value_pairs, z_sv_to_cstr(key), value, NULL, NULL);
+  z_map_put(key_value_pairs, &key.lexeme, value);
 
   if (match(parser, TOKEN_TYPE_COMMA)) {
     json_parse_key_value_pairs(parser, key_value_pairs);
@@ -207,11 +210,11 @@ Json_Item *json_parse_object(Parser_State *parser)
     return NULL;
   }
 
-  return create_json_item_object(key_value_pairs);
+  return create_json_item_object(parser, key_value_pairs);
 }
 
-Json_Item *json_parse(Token_Array tokens)
+Json_Item *json_parse(Z_Heap *heap, Token_Array tokens)
 {
-  Parser_State parser = create_parser(tokens);
+  Parser_State parser = create_parser(heap, tokens);
   return json_parse_object(&parser);
 }
