@@ -52,7 +52,7 @@ void print_token(Token token)
         token.column
     );
   } else {
-    printf("{ type: \"%s\", lexeme: %.*s\", line: %d, col: %d }\n",
+    printf("{ type: \"%s\", lexeme: \"%.*s\", line: %d, col: %d }\n",
         token_type_to_string(token.type),
         token.lexeme.len,
         token.lexeme.ptr,

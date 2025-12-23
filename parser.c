@@ -9,6 +9,9 @@ typedef struct {
   bool had_error;
 } Parser_State;
 
+Json_Item *json_parse_object(Parser_State *parser);
+Json_Item *json_parse_value(Parser_State *parser);
+
 Parser_State create_parser(Token_Vec tokens)
 {
   Parser_State parser = {
@@ -16,6 +19,8 @@ Parser_State create_parser(Token_Vec tokens)
     .had_error = false,
     .tokens = tokens,
   };
+
+  return parser;
 }
 
 Json_Item *create_json_item_object(Z_Map key_value_pairs)
@@ -127,8 +132,13 @@ Json_Item *json_parse_array(Parser_State *parser)
   Json_Item_Array array = {0};
 
   do {
-    z_da_append(&array, json_parse_value);
+    z_da_append(&array, json_parse_value(parser));
   } while (match(parser, TOKEN_TYPE_COMMA));
+
+  if (!match(parser, TOKEN_TYPE_CLOSE_BRACKET)) {
+    parse_error(parser, "Expected ']'");
+    return NULL;
+  }
 
   return create_json_item_array(array);
 }
@@ -152,6 +162,7 @@ Json_Item *json_parse_value(Parser_State *parser)
   }
 
   parse_error(parser, "Expected: object | string | number | array");
+  return NULL;
 }
 
 void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
@@ -187,10 +198,11 @@ Json_Item *json_parse_object(Parser_State *parser)
     return NULL;
   }
 
-  Z_Map key_value_pairs = { .compare_keys = strcmp };
+  Z_Map key_value_pairs = { .compare_keys = (Z_Compare_Fn)strcmp };
+
   json_parse_key_value_pairs(parser, &key_value_pairs);
 
-  if (!match(parser, TOKEN_TYPE_OPEN_BRACE)) {
+  if (!match(parser, TOKEN_TYPE_CLOSE_BRACE)) {
     parse_error(parser, "Expected '}'");
     return NULL;
   }

@@ -7,7 +7,7 @@ int main(int argc, char **argv) {
 
   Z_Cmd cmd = {0};
   z_cmd_append(&cmd, "cc");
-  z_cmd_append(&cmd, "main.c", "lexer.c", "token.c");
+  z_cmd_append(&cmd, "main.c", "lexer.c", "token.c", "parser.c", "print_json.c");
   z_cmd_append(&cmd, "-o", "exe");
   z_cmd_append(&cmd, "-Wextra", "-Wall", "-pedantic");
   z_cmd_append(&cmd, "-g", "-lm");

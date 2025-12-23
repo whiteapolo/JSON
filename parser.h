@@ -31,14 +31,4 @@ struct Json_Item {
 
 Json_Item *json_parse(Token_Vec tokens);
 
-// JSON:                      OBJECT
-// OBJECT:                    '{' OBJECT_KEY_VALUE_PAIRS? '}'
-// OBJECT_KEY_VALUE_PAIRS:    KEY ':' VALUE (',' OBJECT_KEY_VALUE_PAIRS)*
-// KEY:                       STRING
-// VALUE:                     STRING | NUMBER | ARRAY | OBJECT
-
-Json_Item *json_parse_object();
-Z_Map json_parse_key_value_pairs();
-Json_Item *json_parse_value();
-
 #endif
