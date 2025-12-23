@@ -61,9 +61,9 @@ Json_Item *create_json_item_array(Parser_State *parser, Json_Item_Array array)
   return json_item;
 }
 
-Token peek(Parser_State parser)
+Token peek(const Parser_State *parser)
 {
-  return parser.tokens.ptr[parser.curr];
+  return parser->tokens.ptr[parser->curr];
 }
 
 Token advance(Parser_State *parser)
@@ -71,7 +71,7 @@ Token advance(Parser_State *parser)
   return parser->tokens.ptr[parser->curr++];
 }
 
-bool is_at_end(Parser_State parser)
+bool is_at_end(const Parser_State *parser)
 {
   return peek(parser).type == TOKEN_TYPE_EOF;
 }
@@ -82,7 +82,7 @@ bool match(Parser_State *parser, Token_Type type)
     return false;
   }
 
-  if (!is_at_end(*parser) && peek(*parser).type == type) {
+  if (!is_at_end(parser) && peek(parser).type == type) {
     advance(parser);
     return true;
   }
@@ -90,22 +90,18 @@ bool match(Parser_State *parser, Token_Type type)
   return false;
 }
 
-Token previous(Parser_State parser)
+Token previous(const Parser_State *parser)
 {
-  return parser.tokens.ptr[parser.curr - 1];
+  return parser->tokens.ptr[parser->curr - 1];
 }
 
-bool check(Parser_State parser, Token_Type type)
+bool check(const Parser_State *parser, Token_Type type)
 {
-  if (parser.had_error) {
+  if (parser->had_error || is_at_end(parser)) {
     return false;
   }
 
-  if (!is_at_end(parser) && peek(parser).type == type) {
-    return true;
-  }
-
-  return false;
+  return peek(parser).type == type;
 }
 
 // JSON:                      OBJECT
@@ -118,7 +114,7 @@ bool check(Parser_State parser, Token_Type type)
 
 void parse_error(Parser_State *parser, const char *what_parser_expected)
 {
-  Token found = peek(*parser);
+  Token found = peek(parser);
   advance(parser);
   parser->had_error = true;
   printf("%s, But found: '%.*s'", what_parser_expected, (int)found.lexeme.length, found.lexeme.ptr);
@@ -148,19 +144,19 @@ Json_Item *json_parse_array(Parser_State *parser)
 
 Json_Item *json_parse_value(Parser_State *parser)
 {
-  if (check(*parser, TOKEN_TYPE_OPEN_BRACE)) {
+  if (check(parser, TOKEN_TYPE_OPEN_BRACE)) {
     return json_parse_object(parser);
   }
 
   if (match(parser, TOKEN_TYPE_NUMBER)) {
-    return create_json_item_number(parser, previous(*parser).number_value);
+    return create_json_item_number(parser, previous(parser).number_value);
   }
 
   if (match(parser, TOKEN_TYPE_STRING)) {
-    return create_json_item_string(parser, previous(*parser).lexeme);
+    return create_json_item_string(parser, previous(parser).lexeme);
   }
 
-  if (check(*parser, TOKEN_TYPE_OPEN_BRACKET)) {
+  if (check(parser, TOKEN_TYPE_OPEN_BRACKET)) {
     return json_parse_array(parser);
   }
 
@@ -170,11 +166,11 @@ Json_Item *json_parse_value(Parser_State *parser)
 
 void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
 {
-  if (check(*parser, TOKEN_TYPE_CLOSE_BRACE)) {
+  if (check(parser, TOKEN_TYPE_CLOSE_BRACE)) {
     return;
   }
 
-  if (!check(*parser, TOKEN_TYPE_STRING)) {
+  if (!check(parser, TOKEN_TYPE_STRING)) {
     parse_error(parser, "Expected key");
     return;
   }
@@ -187,7 +183,12 @@ void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
   }
 
   Json_Item *value = json_parse_value(parser);
-  z_map_put(key_value_pairs, &key.lexeme, value);
+
+  if (value == NULL) {
+    return;
+  }
+
+  z_map_put(key_value_pairs, z_sv_to_cstr(parser->heap, key.lexeme), value);
 
   if (match(parser, TOKEN_TYPE_COMMA)) {
     json_parse_key_value_pairs(parser, key_value_pairs);
@@ -201,7 +202,7 @@ Json_Item *json_parse_object(Parser_State *parser)
     return NULL;
   }
 
-  Z_Map key_value_pairs = { .compare_keys = (Z_Compare_Fn)strcmp };
+  Z_Map key_value_pairs = z_map_new(parser->heap, (Z_Compare_Fn)strcmp);
 
   json_parse_key_value_pairs(parser, &key_value_pairs);
 

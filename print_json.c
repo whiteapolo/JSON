@@ -9,7 +9,7 @@ void print_json_object(Json_Item *json);
 void print_json_array(Json_Item_Array array)
 {
   printf("[ ");
-  for (size_t i = 0; i < array.length - 1; i++) {
+  for (size_t i = 0; i < array.length; i++) {
     print_json_value(array.ptr[i]);
     if (i != array.length - 1) {
       printf(", ");
@@ -57,11 +57,10 @@ void print_json_object(Json_Item *json)
 {
   printf("{ ");
   print_json_key_value(json->key_value_pairs);
-  printf(" }");
+  printf(" }\n");
 }
 
 void print_json(Json_Item *json)
 {
   print_json_object(json);
-  printf("\n");
 }
