@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <z_map.h>
 
-void print_json_key_value(Z_Map map);
 void print_json_value(Json_Item *value);
 void print_json_object(Json_Item *json);
 
@@ -39,11 +38,17 @@ void print_json_value(Json_Item *value)
   }
 }
 
-void print_json_key_value(Z_Map map)
+void print_json_object(Json_Item *json)
 {
   Z_Heap_Auto heap = {0};
-  Z_Key_Value_Array pairs = z_map_to_array(&heap, &map);
+  Z_Key_Value_Array pairs = z_map_to_array(&heap, &json->key_value_pairs);
 
+  if (pairs.length == 0) {
+    printf("{}\n");
+    return;
+  }
+
+  printf("{\n");
   for (size_t i = 0; i < pairs.length; i++) {
     printf("\"%s\": ", (char *)pairs.ptr[i].key);
     print_json_value(pairs.ptr[i].value);
@@ -51,13 +56,7 @@ void print_json_key_value(Z_Map map)
       printf(", ");
     }
   }
-}
-
-void print_json_object(Json_Item *json)
-{
-  printf("{ ");
-  print_json_key_value(json->key_value_pairs);
-  printf(" }\n");
+  printf("}\n");
 }
 
 void print_json(Json_Item *json)
