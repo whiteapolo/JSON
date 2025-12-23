@@ -4,7 +4,7 @@
 #include <string.h>
 
 typedef struct {
-  Token_Vec tokens;
+  Token_Array tokens;
   int curr;
   bool had_error;
 } Parser_State;
@@ -12,7 +12,7 @@ typedef struct {
 Json_Item *json_parse_object(Parser_State *parser);
 Json_Item *json_parse_value(Parser_State *parser);
 
-Parser_State create_parser(Token_Vec tokens)
+Parser_State create_parser(Token_Array tokens)
 {
   Parser_State parser = {
     .curr = 0,
@@ -210,7 +210,7 @@ Json_Item *json_parse_object(Parser_State *parser)
   return create_json_item_object(key_value_pairs);
 }
 
-Json_Item *json_parse(Token_Vec tokens)
+Json_Item *json_parse(Token_Array tokens)
 {
   Parser_State parser = create_parser(tokens);
   return json_parse_object(&parser);

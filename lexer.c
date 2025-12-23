@@ -121,10 +121,10 @@ Token lexer_next(Lexer *lexer)
   }
 }
 
-Token_Vec lex(Z_String_View source)
+Token_Array lex(Z_String_View source)
 {
   Lexer lexer = create_lexer(source);
-  Token_Vec tokens = {0};
+  Token_Array tokens = {0};
 
   Token token = lexer_next(&lexer);
 

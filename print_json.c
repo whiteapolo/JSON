@@ -22,7 +22,6 @@ void print_json_array(Json_Item_Array array)
   printf("]");
 }
 
-
 void print_json_value(Json_Item *value)
 {
   switch (value->type)

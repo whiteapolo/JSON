@@ -29,6 +29,6 @@ struct Json_Item {
     };
 };
 
-Json_Item *json_parse(Token_Vec tokens);
+Json_Item *json_parse(Token_Array tokens);
 
 #endif

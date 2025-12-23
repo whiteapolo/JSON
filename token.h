@@ -29,11 +29,11 @@ typedef struct {
   int len;
   int cap;
   bool had_errors;
-} Token_Vec;
+} Token_Array;
 
 Token create_token(Token_Type type, Z_String_View lexeme, int line, int column, double number_value);
 Token create_eof_token(int line, int column);
-void print_tokens(Token_Vec tokens);
+void print_tokens(Token_Array tokens);
 void print_token(Token token);
 
 #endif

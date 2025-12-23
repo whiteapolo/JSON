@@ -1,14 +1,18 @@
-{ "name"   : "John Smith",
-  "sku"    : "20223",
-  "price"  : 23.95,
-  "shipTo" : { "name" : "Jane Smith",
-               "address" : "123 Maple Street",
-               "city" : "Pretendville",
-               "state" : "NY",
-               "zip"   : "12345" },
-  "billTo" : { "name" : "John Smith",
-               "address" : "123 Maple Street",
-               "city" : "Pretendville",
-               "state" : "NY",
-               "zip"   : "12345" }
+{
+  "employees": {
+    "employee": [
+      {
+        "id": "1",
+        "firstName": "Tom",
+        "lastName": "Cruise",
+        "photo": "https://jsonformatter.org/img/tom-cruise.jpg"
+      },
+      {
+        "id": {"bye": 10},
+        "firstName": "Maria",
+        "lastName": "Sharapova",
+        "photo": "https://jsonformatter.org/img/Maria-Sharapova.jpg"
+      }, 10, 20
+    ]
+  }
 }

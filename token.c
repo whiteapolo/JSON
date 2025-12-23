@@ -62,7 +62,7 @@ void print_token(Token token)
   }
 }
 
-void print_tokens(Token_Vec tokens)
+void print_tokens(Token_Array tokens)
 {
   z_da_foreach(Token*, token, &tokens) {
     print_token(*token);

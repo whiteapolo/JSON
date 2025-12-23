@@ -6,6 +6,6 @@
 
 typedef Z_Scanner Lexer;
 
-Token_Vec lex(Z_String_View source);
+Token_Array lex(Z_String_View source);
 
 #endif

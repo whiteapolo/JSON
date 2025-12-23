@@ -13,7 +13,7 @@ int main(void) {
   Z_String f = {0};
   z_read_whole_file("./data.json", &f);
 
-  Token_Vec tokens = lex(Z_STR(f));
+  Token_Array tokens = lex(Z_STR(f));
   Json_Item *json = json_parse(tokens);
 
   print_json(json);
