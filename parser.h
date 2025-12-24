@@ -10,6 +10,7 @@ typedef enum {
   JSON_VALUE_KIND_STRING,
   JSON_VALUE_KIND_NUMBER,
   JSON_VALUE_KIND_ARRAY,
+  JSON_VALUE_KIND_NULL,
 } Json_Value_Kind;
 
 typedef struct Json_Value Json_Value;

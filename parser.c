@@ -52,6 +52,14 @@ Json_Value *create_json_item_string(Parser_State *parser, Z_String_View s)
   return json_item;
 }
 
+Json_Value *create_json_item_null(Parser_State *parser)
+{
+  Json_Value *json_item = z_heap_malloc(parser->heap, sizeof(Json_Value));
+  json_item->kind = JSON_VALUE_KIND_NULL;
+
+  return json_item;
+}
+
 Json_Value *create_json_item_array(Parser_State *parser, Json_Value_Array array)
 {
   Json_Value *json_item = z_heap_malloc(parser->heap, sizeof(Json_Value));
@@ -118,7 +126,7 @@ void parse_error(Parser_State *parser, const char *what_parser_expected)
   advance(parser);
   parser->had_error = true;
   printf(
-      "%s, But found: '%.*s' At line: %zu col: %zu\n",
+      "%s, But found: '%.*s' At line: %zu column: %zu\n",
       what_parser_expected,
       (int)found.lexeme.length,
       found.lexeme.ptr,
@@ -151,21 +159,11 @@ Json_Value *json_parse_array(Parser_State *parser)
 
 Json_Value *json_parse_value(Parser_State *parser)
 {
-  if (check(parser, TOKEN_KIND_OPEN_BRACE)) {
-    return json_parse_object(parser);
-  }
-
-  if (match(parser, TOKEN_KIND_NUMBER)) {
-    return create_json_item_number(parser, previous(parser).number_value);
-  }
-
-  if (match(parser, TOKEN_KIND_STRING)) {
-    return create_json_item_string(parser, previous(parser).lexeme);
-  }
-
-  if (check(parser, TOKEN_KIND_OPEN_BRACKET)) {
-    return json_parse_array(parser);
-  }
+  if (check(parser, TOKEN_KIND_OPEN_BRACE)) return json_parse_object(parser);
+  if (match(parser, TOKEN_KIND_NUMBER)) return create_json_item_number(parser, previous(parser).number_value);
+  if (match(parser, TOKEN_KIND_STRING)) return create_json_item_string(parser, previous(parser).lexeme);
+  if (match(parser, TOKEN_KIND_NULL)) return create_json_item_null(parser);
+  if (check(parser, TOKEN_KIND_OPEN_BRACKET)) return json_parse_array(parser);
 
   parse_error(parser, "Expected: object | string | number | array");
   return NULL;

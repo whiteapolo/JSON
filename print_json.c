@@ -24,6 +24,9 @@ void print_json_value(Json_Value *value)
     case JSON_VALUE_KIND_NUMBER:
       printf("%lf", value->as.number);
       break;
+    case JSON_VALUE_KIND_NULL:
+      printf("null");
+      break;
     case JSON_VALUE_KIND_STRING:
       printf("\"");
       z_sv_print(value->as.string);
@@ -56,7 +59,7 @@ void print_json_object(Json_Value *json)
       printf(", ");
     }
   }
-  printf("}\n");
+  printf("\n}\n");
 }
 
 void print_json(Json_Value *json)

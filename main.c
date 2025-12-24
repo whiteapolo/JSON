@@ -26,7 +26,10 @@ int main(void)
   // json_print_tokens(lexer_result.tokens);
 
   Json_Value *json = json_parse(&heap, lexer_result.tokens);
-  // print_json(json);
+
+  if (json) {
+    print_json(json);
+  }
 
   return 0;
 }

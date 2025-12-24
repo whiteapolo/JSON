@@ -97,6 +97,10 @@ Json_Token lexer_next(Z_Scanner *scanner)
     return json_token_create_eof(scanner->line, scanner->column);
   }
 
+  if (z_scanner_match_string(scanner, z_sv_from_cstr("null"))) {
+    return lexer_capture_token(scanner, TOKEN_KIND_NULL);
+  }
+
   char c = z_scanner_peek(scanner);
   z_scanner_advance(scanner, 1);
 
