@@ -1,10 +1,10 @@
 #include "token.h"
 #include <stdio.h>
 
-Token create_token(Token_Type type, Z_String_View lexeme, int line, int column, double number_value)
+Json_Token create_token(Json_Token_Kind kind, Z_String_View lexeme, size_t line, size_t column, double number_value)
 {
-  Token token = {
-    .type = type,
+  Json_Token token = {
+    .kind = kind,
     .lexeme = lexeme,
     .line = line,
     .column = column,
@@ -14,10 +14,10 @@ Token create_token(Token_Type type, Z_String_View lexeme, int line, int column, 
   return token;
 }
 
-Token create_eof_token(int line, int column)
+Json_Token create_eof_token(size_t line, size_t column)
 {
-  Token token = {
-    .type = TOKEN_TYPE_EOF,
+  Json_Token token = {
+    .kind = TOKEN_KIND_EOF,
     .line = line,
     .column = column,
   };
@@ -25,26 +25,27 @@ Token create_eof_token(int line, int column)
   return token;
 }
 
-const char *token_type_to_string(Token_Type type) {
-    switch (type) {
-        case TOKEN_TYPE_EOF:           return "EOF";
-        case TOKEN_TYPE_COMMA:         return "COMMA";
-        case TOKEN_TYPE_COLON:         return "COLON";
-        case TOKEN_TYPE_ERROR:         return "ERROR";
-        case TOKEN_TYPE_NUMBER:        return "NUMBER";
-        case TOKEN_TYPE_STRING:        return "STRING";
-        case TOKEN_TYPE_OPEN_BRACE:    return "OPEN_BRACE";
-        case TOKEN_TYPE_CLOSE_BRACE:   return "CLOSE_BRACE";
-        case TOKEN_TYPE_OPEN_BRACKET:  return "OPEN_BRACKET";
-        case TOKEN_TYPE_CLOSE_BRACKET: return "CLOSE_BRACKET";
+const char *token_kind_to_string(Json_Token_Kind kind) {
+    switch (kind) {
+        case TOKEN_KIND_EOF:           return "EOF";
+        case TOKEN_KIND_COMMA:         return "COMMA";
+        case TOKEN_KIND_COLON:         return "COLON";
+        case TOKEN_KIND_ERROR:         return "ERROR";
+        case TOKEN_KIND_NUMBER:        return "NUMBER";
+        case TOKEN_KIND_STRING:        return "STRING";
+        case TOKEN_KIND_OPEN_BRACE:    return "OPEN_BRACE";
+        case TOKEN_KIND_CLOSE_BRACE:   return "CLOSE_BRACE";
+        case TOKEN_KIND_OPEN_BRACKET:  return "OPEN_BRACKET";
+        case TOKEN_KIND_CLOSE_BRACKET: return "CLOSE_BRACKET";
         default:                       return "UNKNOWN";
     }
 }
 
-void print_token(Token token)
+void print_token(Json_Token token)
 {
-  printf("{ type: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %zu, col: %zu }\n",
-      token_type_to_string(token.type),
+  printf(
+      "{ kind: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %zu, col: %zu }\n",
+      token_kind_to_string(token.kind),
       (int)token.lexeme.length,
       token.lexeme.ptr,
       token.number_value,
@@ -53,7 +54,7 @@ void print_token(Token token)
   );
 }
 
-void print_tokens(Token_Array tokens)
+void print_tokens(Json_Token_Array tokens)
 {
   for (size_t i = 0; i < tokens.length; i++) {
     print_token(tokens.ptr[i]);

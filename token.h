@@ -4,31 +4,31 @@
 #include <z_string.h>
 
 typedef enum {
-  TOKEN_TYPE_OPEN_BRACE,
-  TOKEN_TYPE_CLOSE_BRACE,
-  TOKEN_TYPE_OPEN_BRACKET,
-  TOKEN_TYPE_CLOSE_BRACKET,
-  TOKEN_TYPE_COMMA,
-  TOKEN_TYPE_COLON,
-  TOKEN_TYPE_STRING,
-  TOKEN_TYPE_NUMBER,
-  TOKEN_TYPE_ERROR,
-  TOKEN_TYPE_EOF,
-} Token_Type;
+  TOKEN_KIND_OPEN_BRACE,
+  TOKEN_KIND_CLOSE_BRACE,
+  TOKEN_KIND_OPEN_BRACKET,
+  TOKEN_KIND_CLOSE_BRACKET,
+  TOKEN_KIND_COMMA,
+  TOKEN_KIND_COLON,
+  TOKEN_KIND_STRING,
+  TOKEN_KIND_NUMBER,
+  TOKEN_KIND_ERROR,
+  TOKEN_KIND_EOF,
+} Json_Token_Kind;
 
 typedef struct {
-  Token_Type type;
+  Json_Token_Kind kind;
   size_t line;
   size_t column;
   Z_String_View lexeme;
   double number_value;
-} Token;
+} Json_Token;
 
-Z_DEFINE_ARRAY(Token_Array, Token);
+Z_DEFINE_ARRAY(Json_Token_Array, Json_Token);
 
-Token create_token(Token_Type type, Z_String_View lexeme, int line, int column, double number_value);
-Token create_eof_token(int line, int column);
-void print_tokens(Token_Array tokens);
-void print_token(Token token);
+Json_Token create_token(Json_Token_Kind kind, Z_String_View lexeme, size_t line, size_t column, double number_value);
+Json_Token create_eof_token(size_t line, size_t column);
+void print_tokens(Json_Token_Array tokens);
+void print_token(Json_Token token);
 
 #endif

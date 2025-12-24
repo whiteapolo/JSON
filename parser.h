@@ -14,18 +14,18 @@ typedef enum {
 
 typedef struct Json_Value Json_Value;
 
-Z_DEFINE_ARRAY(Json_Item_Array, Json_Value *);
+Z_DEFINE_ARRAY(Json_Value_Array, Json_Value *);
 
 struct Json_Value {
-    Json_Value_Kind type;
+    Json_Value_Kind kind;
     union {
         Z_Map key_value_pairs;
         Z_String_View string;
         double number;
-        Json_Item_Array array;
-    };
+        Json_Value_Array array;
+    } as;
 };
 
-Json_Value *json_parse(Z_Heap *heap, Token_Array tokens);
+Json_Value *json_parse(Z_Heap *heap, Json_Token_Array tokens);
 
 #endif

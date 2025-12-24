@@ -7,27 +7,27 @@
 #include <math.h>
 #include <z_scanner.h>
 
-Token lexer_capture_token(const Z_Scanner *scanner, Token_Type type)
+Json_Token lexer_capture_token(const Z_Scanner *scanner, Json_Token_Kind kind)
 {
-  return create_token(type, z_scanner_capture(scanner), scanner->line, scanner->column, 0);
+  return create_token(kind, z_scanner_capture(scanner), scanner->line, scanner->column, 0);
 }
 
-Token lexer_capture_number_token(const Z_Scanner *scanner, double number_value)
+Json_Token lexer_capture_number_token(const Z_Scanner *scanner, double number_value)
 {
-  return create_token(TOKEN_TYPE_NUMBER, z_scanner_capture(scanner), scanner->line, scanner->column, number_value);
+  return create_token(TOKEN_KIND_NUMBER, z_scanner_capture(scanner), scanner->line, scanner->column, number_value);
 }
 
-Token lexer_capture_error(const Z_Scanner *scanner)
+Json_Token lexer_capture_error(const Z_Scanner *scanner)
 {
-  return lexer_capture_token(scanner, TOKEN_TYPE_ERROR);
+  return lexer_capture_token(scanner, TOKEN_KIND_ERROR);
 }
 
-Token lexer_string(Z_Scanner *scanner)
+Json_Token lexer_string(Z_Scanner *scanner)
 {
   z_scanner_reset_mark(scanner);
   z_scanner_advance_until(scanner, '"');
 
-  Token token = lexer_capture_token(scanner, TOKEN_TYPE_STRING);
+  Json_Token token = lexer_capture_token(scanner, TOKEN_KIND_STRING);
 
   if (!z_scanner_match(scanner, '"')) {
     return lexer_capture_error(scanner);
@@ -56,7 +56,7 @@ double string_to_number(Z_String_View s)
   return value;
 }
 
-Token lexer_number(Z_Scanner *scanner)
+Json_Token lexer_number(Z_Scanner *scanner)
 {
   while (!z_scanner_is_at_end(scanner) && is_number_character(z_scanner_peek(scanner))) {
     z_scanner_advance(scanner, 1);
@@ -72,13 +72,13 @@ Token lexer_number(Z_Scanner *scanner)
   return lexer_capture_number_token(scanner, value);
 }
 
-Token lexer_unknown(Z_Scanner *scanner)
+Json_Token lexer_unknown(Z_Scanner *scanner)
 {
   z_scanner_advance_until(scanner, '\n');
   return lexer_capture_error(scanner);
 }
 
-Token lexer_next(Z_Scanner *scanner)
+Json_Token lexer_next(Z_Scanner *scanner)
 {
   z_scanner_skip_spaces(scanner);
   z_scanner_reset_mark(scanner);
@@ -95,31 +95,31 @@ Token lexer_next(Z_Scanner *scanner)
   }
 
   switch (c) {
-    case ',': return lexer_capture_token(scanner, TOKEN_TYPE_COMMA);
-    case '{': return lexer_capture_token(scanner, TOKEN_TYPE_OPEN_BRACE);
-    case '}': return lexer_capture_token(scanner, TOKEN_TYPE_CLOSE_BRACE);
-    case '[': return lexer_capture_token(scanner, TOKEN_TYPE_OPEN_BRACKET);
-    case ']': return lexer_capture_token(scanner, TOKEN_TYPE_CLOSE_BRACKET);
-    case ':': return lexer_capture_token(scanner, TOKEN_TYPE_COLON);
+    case ',': return lexer_capture_token(scanner, TOKEN_KIND_COMMA);
+    case '{': return lexer_capture_token(scanner, TOKEN_KIND_OPEN_BRACE);
+    case '}': return lexer_capture_token(scanner, TOKEN_KIND_CLOSE_BRACE);
+    case '[': return lexer_capture_token(scanner, TOKEN_KIND_OPEN_BRACKET);
+    case ']': return lexer_capture_token(scanner, TOKEN_KIND_CLOSE_BRACKET);
+    case ':': return lexer_capture_token(scanner, TOKEN_KIND_COLON);
     case '"': return lexer_string(scanner);
     default: return lexer_unknown(scanner);
   }
 }
 
-Lexer_Result lex(Z_Heap *heap, Z_String_View source)
+Json_Lexer_Result json_lex(Z_Heap *heap, Z_String_View source)
 {
-  Lexer_Result result = {
-    .had_errors = false,
-    .tokens = z_array_new(heap, Token_Array),
+  Json_Lexer_Result result = {
+    .ok = true,
+    .tokens = z_array_new(heap, Json_Token_Array),
   };
   
   Z_Scanner scanner = z_scanner_new(source);
-  Token token = lexer_next(&scanner);
+  Json_Token token = lexer_next(&scanner);
 
-  while (token.type != TOKEN_TYPE_EOF) {
+  while (token.kind != TOKEN_KIND_EOF) {
 
-    if (token.type == TOKEN_TYPE_ERROR) {
-      result.had_errors = true;
+    if (token.kind == TOKEN_KIND_ERROR) {
+      result.ok = false;
     }
 
     z_array_push(&result.tokens, token);

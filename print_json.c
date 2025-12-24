@@ -5,7 +5,7 @@
 void print_json_value(Json_Value *value);
 void print_json_object(Json_Value *json);
 
-void print_json_array(Json_Item_Array array)
+void print_json_array(Json_Value_Array array)
 {
   printf("[ ");
   for (size_t i = 0; i < array.length; i++) {
@@ -19,18 +19,18 @@ void print_json_array(Json_Item_Array array)
 
 void print_json_value(Json_Value *value)
 {
-  switch (value->type)
+  switch (value->kind)
   {
     case JSON_VALUE_KIND_NUMBER:
-      printf("%lf", value->number);
+      printf("%lf", value->as.number);
       break;
     case JSON_VALUE_KIND_STRING:
       printf("\"");
-      z_sv_print(value->string);
+      z_sv_print(value->as.string);
       printf("\"");
       break;
     case JSON_VALUE_KIND_ARRAY:
-      print_json_array(value->array);
+      print_json_array(value->as.array);
       break;
     case JSON_VALUE_KIND_OBJECT:
       print_json_object(value);
@@ -41,7 +41,7 @@ void print_json_value(Json_Value *value)
 void print_json_object(Json_Value *json)
 {
   Z_Heap_Auto heap = {0};
-  Z_Key_Value_Array pairs = z_map_to_array(&heap, &json->key_value_pairs);
+  Z_Key_Value_Array pairs = z_map_to_array(&heap, &json->as.key_value_pairs);
 
   if (pairs.length == 0) {
     printf("{}\n");

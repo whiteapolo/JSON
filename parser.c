@@ -5,7 +5,7 @@
 
 typedef struct {
   Z_Heap *heap;
-  Token_Array tokens;
+  Json_Token_Array tokens;
   int curr;
   bool had_error;
 } Parser_State;
@@ -13,7 +13,7 @@ typedef struct {
 Json_Value *json_parse_object(Parser_State *parser);
 Json_Value *json_parse_value(Parser_State *parser);
 
-Parser_State create_parser(Z_Heap *heap, Token_Array tokens)
+Parser_State create_parser(Z_Heap *heap, Json_Token_Array tokens)
 {
   Parser_State parser = {
     .heap = heap,
@@ -28,8 +28,8 @@ Parser_State create_parser(Z_Heap *heap, Token_Array tokens)
 Json_Value *create_json_item_object(Parser_State *parser, Z_Map key_value_pairs)
 {
   Json_Value *json_item = z_heap_malloc(parser->heap, sizeof(Json_Value));
-  json_item->type = JSON_VALUE_KIND_OBJECT;
-  json_item->key_value_pairs = key_value_pairs;
+  json_item->kind = JSON_VALUE_KIND_OBJECT;
+  json_item->as.key_value_pairs = key_value_pairs;
 
   return json_item;
 }
@@ -37,8 +37,8 @@ Json_Value *create_json_item_object(Parser_State *parser, Z_Map key_value_pairs)
 Json_Value *create_json_item_number(Parser_State *parser, double number)
 {
   Json_Value *json_item = z_heap_malloc(parser->heap, sizeof(Json_Value));
-  json_item->type = JSON_VALUE_KIND_NUMBER;
-  json_item->number = number;
+  json_item->kind = JSON_VALUE_KIND_NUMBER;
+  json_item->as.number = number;
 
   return json_item;
 }
@@ -46,43 +46,43 @@ Json_Value *create_json_item_number(Parser_State *parser, double number)
 Json_Value *create_json_item_string(Parser_State *parser, Z_String_View s)
 {
   Json_Value *json_item = z_heap_malloc(parser->heap, sizeof(Json_Value));
-  json_item->type = JSON_VALUE_KIND_STRING;
-  json_item->string = s;
+  json_item->kind = JSON_VALUE_KIND_STRING;
+  json_item->as.string = s;
 
   return json_item;
 }
 
-Json_Value *create_json_item_array(Parser_State *parser, Json_Item_Array array)
+Json_Value *create_json_item_array(Parser_State *parser, Json_Value_Array array)
 {
   Json_Value *json_item = z_heap_malloc(parser->heap, sizeof(Json_Value));
-  json_item->type = JSON_VALUE_KIND_ARRAY;
-  json_item->array = array;
+  json_item->kind = JSON_VALUE_KIND_ARRAY;
+  json_item->as.array = array;
 
   return json_item;
 }
 
-Token peek(const Parser_State *parser)
+Json_Token peek(const Parser_State *parser)
 {
   return parser->tokens.ptr[parser->curr];
 }
 
-Token advance(Parser_State *parser)
+Json_Token advance(Parser_State *parser)
 {
   return parser->tokens.ptr[parser->curr++];
 }
 
 bool is_at_end(const Parser_State *parser)
 {
-  return peek(parser).type == TOKEN_TYPE_EOF;
+  return peek(parser).kind == TOKEN_KIND_EOF;
 }
 
-bool match(Parser_State *parser, Token_Type type)
+bool match(Parser_State *parser, Json_Token_Kind kind)
 {
   if (parser->had_error) {
     return false;
   }
 
-  if (!is_at_end(parser) && peek(parser).type == type) {
+  if (!is_at_end(parser) && peek(parser).kind == kind) {
     advance(parser);
     return true;
   }
@@ -90,18 +90,18 @@ bool match(Parser_State *parser, Token_Type type)
   return false;
 }
 
-Token previous(const Parser_State *parser)
+Json_Token previous(const Parser_State *parser)
 {
   return parser->tokens.ptr[parser->curr - 1];
 }
 
-bool check(const Parser_State *parser, Token_Type type)
+bool check(const Parser_State *parser, Json_Token_Kind kind)
 {
   if (parser->had_error || is_at_end(parser)) {
     return false;
   }
 
-  return peek(parser).type == type;
+  return peek(parser).kind == kind;
 }
 
 // JSON:                      OBJECT
@@ -114,7 +114,7 @@ bool check(const Parser_State *parser, Token_Type type)
 
 void parse_error(Parser_State *parser, const char *what_parser_expected)
 {
-  Token found = peek(parser);
+  Json_Token found = peek(parser);
   advance(parser);
   parser->had_error = true;
   printf(
@@ -129,19 +129,19 @@ void parse_error(Parser_State *parser, const char *what_parser_expected)
 
 Json_Value *json_parse_array(Parser_State *parser)
 {
-  if (!match(parser, TOKEN_TYPE_OPEN_BRACKET)) {
+  if (!match(parser, TOKEN_KIND_OPEN_BRACKET)) {
     parse_error(parser, "Expected '['");
     return NULL;
   }
 
 
-  Json_Item_Array array = z_array_new(parser->heap, Json_Item_Array);
+  Json_Value_Array array = z_array_new(parser->heap, Json_Value_Array);
 
   do {
     z_array_push(&array, json_parse_value(parser));
-  } while (match(parser, TOKEN_TYPE_COMMA));
+  } while (match(parser, TOKEN_KIND_COMMA));
 
-  if (!match(parser, TOKEN_TYPE_CLOSE_BRACKET)) {
+  if (!match(parser, TOKEN_KIND_CLOSE_BRACKET)) {
     parse_error(parser, "Expected ']'");
     return NULL;
   }
@@ -151,19 +151,19 @@ Json_Value *json_parse_array(Parser_State *parser)
 
 Json_Value *json_parse_value(Parser_State *parser)
 {
-  if (check(parser, TOKEN_TYPE_OPEN_BRACE)) {
+  if (check(parser, TOKEN_KIND_OPEN_BRACE)) {
     return json_parse_object(parser);
   }
 
-  if (match(parser, TOKEN_TYPE_NUMBER)) {
+  if (match(parser, TOKEN_KIND_NUMBER)) {
     return create_json_item_number(parser, previous(parser).number_value);
   }
 
-  if (match(parser, TOKEN_TYPE_STRING)) {
+  if (match(parser, TOKEN_KIND_STRING)) {
     return create_json_item_string(parser, previous(parser).lexeme);
   }
 
-  if (check(parser, TOKEN_TYPE_OPEN_BRACKET)) {
+  if (check(parser, TOKEN_KIND_OPEN_BRACKET)) {
     return json_parse_array(parser);
   }
 
@@ -173,18 +173,18 @@ Json_Value *json_parse_value(Parser_State *parser)
 
 void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
 {
-  if (check(parser, TOKEN_TYPE_CLOSE_BRACE)) {
+  if (check(parser, TOKEN_KIND_CLOSE_BRACE)) {
     return;
   }
 
-  if (!check(parser, TOKEN_TYPE_STRING)) {
+  if (!check(parser, TOKEN_KIND_STRING)) {
     parse_error(parser, "Expected key");
     return;
   }
 
-  Token key = advance(parser);
+  Json_Token key = advance(parser);
 
-  if (!match(parser, TOKEN_TYPE_COLON)) {
+  if (!match(parser, TOKEN_KIND_COLON)) {
     parse_error(parser, "Expected ':'");
     return;
   }
@@ -197,14 +197,14 @@ void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
 
   z_map_put(key_value_pairs, z_sv_to_cstr(parser->heap, key.lexeme), value);
 
-  if (match(parser, TOKEN_TYPE_COMMA)) {
+  if (match(parser, TOKEN_KIND_COMMA)) {
     json_parse_key_value_pairs(parser, key_value_pairs);
   }
 }
 
 Json_Value *json_parse_object(Parser_State *parser)
 {
-  if (!match(parser, TOKEN_TYPE_OPEN_BRACE)) {
+  if (!match(parser, TOKEN_KIND_OPEN_BRACE)) {
     parse_error(parser, "Expected '{'");
     return NULL;
   }
@@ -213,7 +213,7 @@ Json_Value *json_parse_object(Parser_State *parser)
 
   json_parse_key_value_pairs(parser, &key_value_pairs);
 
-  if (!match(parser, TOKEN_TYPE_CLOSE_BRACE)) {
+  if (!match(parser, TOKEN_KIND_CLOSE_BRACE)) {
     parse_error(parser, "Expected '}'");
     return NULL;
   }
@@ -221,11 +221,11 @@ Json_Value *json_parse_object(Parser_State *parser)
   return create_json_item_object(parser, key_value_pairs);
 }
 
-Json_Value *json_parse(Z_Heap *heap, Token_Array tokens)
+Json_Value *json_parse(Z_Heap *heap, Json_Token_Array tokens)
 {
   Parser_State parser = create_parser(heap, tokens);
 
-  if (check(&parser, TOKEN_TYPE_OPEN_BRACE)) return json_parse_object(&parser);
-  if (check(&parser, TOKEN_TYPE_OPEN_BRACKET)) return json_parse_array(&parser);
+  if (check(&parser, TOKEN_KIND_OPEN_BRACE)) return json_parse_object(&parser);
+  if (check(&parser, TOKEN_KIND_OPEN_BRACKET)) return json_parse_array(&parser);
   return NULL;
 }

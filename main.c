@@ -17,14 +17,14 @@ int main(void)
     return 1;
   }
 
-  Lexer_Result lexer_result = lex(&heap, z_sv_from_str(&result.value));
+  Json_Lexer_Result lexer_result = json_lex(&heap, z_sv_from_str(&result.value));
 
-  if (lexer_result.had_errors) {
+  if (!lexer_result.ok) {
     return 2;
   }
 
   Json_Value *json = json_parse(&heap, lexer_result.tokens);
-  // print_json(json);
+  print_json(json);
 
   return 0;
 }
