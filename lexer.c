@@ -39,11 +39,13 @@ Json_Token lexer_string(Z_Scanner *scanner)
     z_scanner_advance(scanner, 1);
   }
 
+  Json_Token token = lexer_capture_token(scanner, TOKEN_KIND_STRING);
+
   if (!z_scanner_match(scanner, '"')) {
     return lexer_capture_error(scanner, "Expected '\"' at line end");
   }
 
-  return lexer_capture_token(scanner, TOKEN_KIND_STRING);
+  return token;
 }
 
 bool is_number_character(char c)

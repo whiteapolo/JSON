@@ -14,7 +14,7 @@ void print_json_array(Json_Value_Array array)
       printf(", ");
     }
   }
-  printf("]\n");
+  printf("]");
 }
 
 void print_json_value(Json_Value *value)
@@ -47,11 +47,11 @@ void print_json_object(Json_Value *json)
   Z_Key_Value_Array pairs = z_map_to_array(&heap, &json->as.key_value_pairs);
 
   if (pairs.length == 0) {
-    printf("{}\n");
+    printf("{}");
     return;
   }
 
-  printf("{\n");
+  printf("{");
   for (size_t i = 0; i < pairs.length; i++) {
     printf("\"%s\": ", (char *)pairs.ptr[i].key);
     print_json_value(pairs.ptr[i].value);
@@ -59,10 +59,11 @@ void print_json_object(Json_Value *json)
       printf(", ");
     }
   }
-  printf("\n}\n");
+  printf("}");
 }
 
 void print_json(Json_Value *json)
 {
   print_json_value(json);
+  printf("\n");
 }
