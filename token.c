@@ -1,7 +1,7 @@
 #include "token.h"
 #include <stdio.h>
 
-Json_Token create_token(Json_Token_Kind kind, Z_String_View lexeme, size_t line, size_t column, double number_value)
+Json_Token json_token_create(Json_Token_Kind kind, Z_String_View lexeme, size_t line, size_t column, double number_value)
 {
   Json_Token token = {
     .kind = kind,
@@ -14,7 +14,7 @@ Json_Token create_token(Json_Token_Kind kind, Z_String_View lexeme, size_t line,
   return token;
 }
 
-Json_Token create_eof_token(size_t line, size_t column)
+Json_Token json_token_create_eof(size_t line, size_t column)
 {
   Json_Token token = {
     .kind = TOKEN_KIND_EOF,
@@ -41,7 +41,7 @@ const char *token_kind_to_string(Json_Token_Kind kind) {
     }
 }
 
-void print_token(Json_Token token)
+void json_print_token(Json_Token token)
 {
   printf(
       "{ kind: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %zu, col: %zu }\n",
@@ -54,9 +54,9 @@ void print_token(Json_Token token)
   );
 }
 
-void print_tokens(Json_Token_Array tokens)
+void json_print_tokens(Json_Token_Array tokens)
 {
   for (size_t i = 0; i < tokens.length; i++) {
-    print_token(tokens.ptr[i]);
+    json_print_token(tokens.ptr[i]);
   }
 }

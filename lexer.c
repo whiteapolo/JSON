@@ -9,31 +9,41 @@
 
 Json_Token lexer_capture_token(const Z_Scanner *scanner, Json_Token_Kind kind)
 {
-  return create_token(kind, z_scanner_capture(scanner), scanner->line, scanner->column, 0);
+  return json_token_create(kind, z_scanner_capture(scanner), scanner->line, scanner->column, 0);
 }
 
 Json_Token lexer_capture_number_token(const Z_Scanner *scanner, double number_value)
 {
-  return create_token(TOKEN_KIND_NUMBER, z_scanner_capture(scanner), scanner->line, scanner->column, number_value);
+  return json_token_create(TOKEN_KIND_NUMBER, z_scanner_capture(scanner), scanner->line, scanner->column, number_value);
 }
 
-Json_Token lexer_capture_error(const Z_Scanner *scanner)
+Json_Token lexer_capture_error(const Z_Scanner *scanner, const char *expected)
 {
-  return lexer_capture_token(scanner, TOKEN_KIND_ERROR);
+  Json_Token token = lexer_capture_token(scanner, TOKEN_KIND_ERROR);
+  printf(
+    "%s, But found: '%.*s', At: %zu:%zu\n",
+    expected,
+    (int)token.lexeme.length,
+    token.lexeme.ptr,
+    token.line,
+    token.column
+  );
+  return token;
 }
 
 Json_Token lexer_string(Z_Scanner *scanner)
 {
   z_scanner_reset_mark(scanner);
-  z_scanner_advance_until(scanner, '"');
 
-  Json_Token token = lexer_capture_token(scanner, TOKEN_KIND_STRING);
-
-  if (!z_scanner_match(scanner, '"')) {
-    return lexer_capture_error(scanner);
+  while (!z_scanner_is_at_end(scanner) && !z_scanner_check(scanner, '\n') && !z_scanner_check(scanner, '"')) {
+    z_scanner_advance(scanner, 1);
   }
 
-  return token;
+  if (!z_scanner_match(scanner, '"')) {
+    return lexer_capture_error(scanner, "Expected '\"' at line end");
+  }
+
+  return lexer_capture_token(scanner, TOKEN_KIND_STRING);
 }
 
 bool is_number_character(char c)
@@ -66,7 +76,7 @@ Json_Token lexer_number(Z_Scanner *scanner)
   double value = string_to_number(lexeme);
 
   if (isnan(value)) {
-    return lexer_capture_error(scanner);
+    return lexer_capture_error(scanner, "Expected number");
   }
 
   return lexer_capture_number_token(scanner, value);
@@ -75,7 +85,7 @@ Json_Token lexer_number(Z_Scanner *scanner)
 Json_Token lexer_unknown(Z_Scanner *scanner)
 {
   z_scanner_advance_until(scanner, '\n');
-  return lexer_capture_error(scanner);
+  return lexer_capture_error(scanner, "Expected anything");
 }
 
 Json_Token lexer_next(Z_Scanner *scanner)
@@ -84,7 +94,7 @@ Json_Token lexer_next(Z_Scanner *scanner)
   z_scanner_reset_mark(scanner);
 
   if (z_scanner_is_at_end(scanner)) {
-    return create_eof_token(scanner->line, scanner->column);
+    return json_token_create_eof(scanner->line, scanner->column);
   }
 
   char c = z_scanner_peek(scanner);
