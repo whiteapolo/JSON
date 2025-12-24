@@ -14,7 +14,7 @@ void print_json_array(Json_Item_Array array)
       printf(", ");
     }
   }
-  printf("]");
+  printf("]\n");
 }
 
 void print_json_value(Json_Item *value)
@@ -61,5 +61,5 @@ void print_json_object(Json_Item *json)
 
 void print_json(Json_Item *json)
 {
-  print_json_object(json);
+  print_json_value(json);
 }

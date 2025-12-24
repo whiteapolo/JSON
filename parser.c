@@ -117,7 +117,14 @@ void parse_error(Parser_State *parser, const char *what_parser_expected)
   Token found = peek(parser);
   advance(parser);
   parser->had_error = true;
-  printf("%s, But found: '%.*s'", what_parser_expected, (int)found.lexeme.length, found.lexeme.ptr);
+  printf(
+      "%s, But found: '%.*s' At line: %zu col: %zu\n",
+      what_parser_expected,
+      (int)found.lexeme.length,
+      found.lexeme.ptr,
+      found.line,
+      found.column
+  );
 }
 
 Json_Item *json_parse_array(Parser_State *parser)
@@ -217,5 +224,8 @@ Json_Item *json_parse_object(Parser_State *parser)
 Json_Item *json_parse(Z_Heap *heap, Token_Array tokens)
 {
   Parser_State parser = create_parser(heap, tokens);
-  return json_parse_object(&parser);
+
+  if (check(&parser, TOKEN_TYPE_OPEN_BRACE)) return json_parse_object(&parser);
+  if (check(&parser, TOKEN_TYPE_OPEN_BRACKET)) return json_parse_array(&parser);
+  return NULL;
 }

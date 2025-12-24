@@ -1,5 +1,5 @@
 CC = cc
-CFLAGS = -I./include -I./src -g
+CFLAGS = -I./include -I./src -O3
 LIB = libzatar.a
 OBJDIR = obj
 SRC = $(shell find src -name "*.c")

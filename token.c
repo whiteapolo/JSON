@@ -43,7 +43,7 @@ const char *token_type_to_string(Token_Type type) {
 
 void print_token(Token token)
 {
-  printf("{ type: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %d, col: %d }\n",
+  printf("{ type: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %zu, col: %zu }\n",
       token_type_to_string(token.type),
       (int)token.lexeme.length,
       token.lexeme.ptr,

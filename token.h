@@ -18,8 +18,8 @@ typedef enum {
 
 typedef struct {
   Token_Type type;
-  int line;
-  int column;
+  size_t line;
+  size_t column;
   Z_String_View lexeme;
   double number_value;
 } Token;
