@@ -11,7 +11,7 @@
 int main(void)
 {
   Z_Heap_Auto heap = {0};
-  Z_Maybe_String result = z_read_file(&heap, "./data.json");
+  Z_Maybe_String result = z_read_file(&heap, "./5MB.json");
 
   if (!result.ok) {
     return 1;
@@ -23,8 +23,8 @@ int main(void)
     return 2;
   }
 
-  Json_Item *json = json_parse(&heap, lexer_result.tokens);
-  print_json(json);
+  Json_Value *json = json_parse(&heap, lexer_result.tokens);
+  // print_json(json);
 
   return 0;
 }

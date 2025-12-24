@@ -3,6 +3,6 @@
 
 #include "parser.h"
 
-void print_json(Json_Item *json);
+void print_json(Json_Value *json);
 
 #endif
