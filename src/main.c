@@ -8,10 +8,15 @@
 #include <z_string.h>
 #include <z_file.h>
 
+#include "lexer.c"
+#include "parser.c"
+#include "token.c"
+#include "print_json.c"
+
 int main(void)
 {
   Z_Heap_Auto heap = {0};
-  Z_Maybe_String result = z_read_file(&heap, "./5MB.json");
+  Z_Maybe_String result = z_read_file(&heap, "./example-data/5MB.json");
 
   if (!result.ok) {
     return 1;
@@ -27,9 +32,9 @@ int main(void)
 
   Json_Value *json = json_parse(&heap, lexer_result.tokens);
 
-  // if (json) {
-  //   print_json(json);
-  // }
+  if (json) {
+    // print_json(json);
+  }
 
   return 0;
 }
