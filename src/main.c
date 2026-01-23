@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <z_string.h>
-#include <z_file.h>
+#include <z_io.h>
+#include <z_memory_manager.h>
 
 #include "lexer.c"
 #include "parser.c"
@@ -31,6 +32,9 @@ int main(void)
   // json_print_tokens(lexer_result.tokens);
 
   Json_Value *json = json_parse(&heap, lexer_result.tokens);
+
+  printf("%zu\n", heap.table.capacity);
+  printf("%zu\n", heap.table.occupied);
 
   if (json) {
     // print_json(json);
