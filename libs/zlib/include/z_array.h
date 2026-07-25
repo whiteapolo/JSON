@@ -2,11 +2,11 @@
 #define ARRAY_H
 
 #include <string.h>
-#include <z_config.h>
+#include <internal/z_config.h>
 
 #define Z_DEFINE_ARRAY(identifier, element_type) \
 typedef struct {                                 \
-  Z_Heap *heap;                                  \
+  Z_Heap *heap;                        \
   element_type *ptr;                             \
   size_t length;                                 \
   size_t capacity;                               \

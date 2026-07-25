@@ -1,10 +1,6 @@
 #include <internal/z_avl.h>
+#include <internal/z_math.h>
 #include <stdio.h>
-
-static int z__avl_max(int a, int b)
-{
-  return a > b ? a : b;
-}
 
 int z__avl_get_height(const Z_Avl_Node *node)
 {
@@ -13,7 +9,7 @@ int z__avl_get_height(const Z_Avl_Node *node)
 
 void z__avl_update_height(Z_Avl_Node *node)
 {
-  node->height = 1 + z__avl_max(z__avl_get_height(node->right), z__avl_get_height(node->left));
+  node->height = 1 + z__max_int(z__avl_get_height(node->right), z__avl_get_height(node->left));
 }
 
 int z__avl_get_balance_factor(const Z_Avl_Node *node)
@@ -185,7 +181,7 @@ Z_Key_Value z__avl_remove(
 
   if ((*root)->left == NULL || (*root)->right == NULL) {
     Z_Avl_Node *tmp = (*root)->left ? (*root)->left : (*root)->right;
-    z_heap_free_pointer(heap, *root);
+    z_heap_free(heap, *root);
     *root = tmp;
     return old_key_value;
   }

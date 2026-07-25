@@ -2,17 +2,13 @@
 #include <z_array.h>
 #include <limits.h>
 #include <stdio.h>
+#include <internal/z_math.h>
 
 #define Z__WHITE_SPACE " \f\n\r\t\v"
 
 int z__size_t_to_int(size_t a)
 {
   return a > INT_MAX ? INT_MAX : (int)a;
-}
-
-size_t z__min(size_t a, size_t b)
-{
-  return a > b ? b : a;
 }
 
 size_t z__get_format_length(const char *format, va_list args)
@@ -143,7 +139,7 @@ void z_str_replace(Z_String *s, Z_String_View target, Z_String_View replacement)
   size_t i = 0;
 
   while (i < s->length) {
-    if (z_sv_equal(z_sv_offset(z_sv_from_str(s), i), target)) {
+    if (z_sv_equal(z_sv_advance(z_sv_from_str(s), i), target)) {
       z_str_append_str(&tmp, replacement);
       i += replacement.length;
     } else {
@@ -173,24 +169,24 @@ Z_String z_str_join(Z_Heap *heap, const Z_String_Array *array, Z_String_View del
   return result;
 }
 
-Z_String_Array z_str_split(Z_Heap *heap, Z_String_View s, Z_String_View delimiter)
+Z_String_View_Array z_str_split(Z_Heap *heap, Z_String_View s, Z_String_View delimiter)
 {
-  if (delimiter.length == 0) {
-    return z_array_new(heap, Z_String_Array);
-  }
+  Z_String_View_Array result = z_array_new(heap, Z_String_View_Array);
 
-  Z_String_Array result = z_array_new(heap, Z_String_Array);
+  if (delimiter.length == 0) {
+    return result;
+  }
 
   ssize_t offset = 0;
   ssize_t length = 0;
 
-  while ((length = z_sv_find_index(z_sv_offset(s, offset), delimiter)) != -1) {
+  while ((length = z_sv_find_index(z_sv_advance(s, offset), delimiter)) != -1) {
     Z_String_View slice = z_sv_substring(s, offset, offset + length);
-    z_array_push(&result, z_str_new_from_sv(heap, slice));
+    z_array_push(&result, slice);
     offset += length + delimiter.length;
   }
 
-  z_array_push(&result, z_str_new_from_sv(heap, z_sv_substring(s, offset, s.length)));
+  z_array_push(&result, z_sv_substring(s, offset, s.length));
 
   return result;
 }
@@ -215,7 +211,7 @@ Z_String_View z_sv_from_cstr(const char *s)
   return view;
 }
 
-Z_String_View z_sv_offset(Z_String_View s, size_t offset)
+Z_String_View z_sv_advance(Z_String_View s, size_t offset)
 {
   Z_String_View view = {
     .ptr = s.ptr + offset,
@@ -242,7 +238,7 @@ char z_sv_peek(Z_String_View s)
 
 int z_sv_compare(Z_String_View a, Z_String_View b)
 {
-  int result = memcmp(a.ptr, b.ptr, z__min(a.length, b.length));
+  int result = memcmp(a.ptr, b.ptr, z__min_size_t(a.length, b.length));
 
   if (result == 0) {
     return z__size_t_to_int(a.length) - z__size_t_to_int(b.length);
@@ -256,11 +252,38 @@ bool z_sv_equal(Z_String_View a, Z_String_View b)
   return z_sv_compare(a, b) == 0;
 }
 
+bool z_sv_naive_like(Z_String_View str, Z_String_View pattern)
+{
+  if (str.length == 0 && pattern.length == 0) {
+    return true;
+  }
+
+  if (str.length == 0 || pattern.length == 0) {
+    return false;
+  }
+
+  if (pattern.ptr[0] == '%') {
+    return z_sv_naive_like(z_sv_advance(str, 1), z_sv_advance(pattern, 1))
+      || z_sv_naive_like(z_sv_advance(str, 1), pattern)
+      || z_sv_naive_like(str, z_sv_advance(pattern, 1));
+  }
+
+  if (str.ptr[0] == pattern.ptr[0] || pattern.ptr[0] == '_') {
+    return z_sv_naive_like(z_sv_advance(str, 1), z_sv_advance(pattern, 1));
+  }
+
+  return false;
+}
+
 int z_sv_compare_n(Z_String_View a, Z_String_View b, size_t n)
 {
-  if (a.length < n) return -1;
-  if (b.length < n) return 1;
-  return memcmp(a.ptr, b.ptr, n);
+  int compare = memcmp(a.ptr, b.ptr, z__min_size_t(n, z__min_size_t(a.length, b.length)));
+
+  if (compare == 0) {
+    return z__size_t_to_int(a.length) - z__size_t_to_int(b.length);
+  }
+
+  return compare;
 }
 
 bool z_sv_equal_n(Z_String_View a, Z_String_View b, size_t n)
@@ -395,7 +418,7 @@ Z_String_View z_sv_trim_left_cset(Z_String_View s, Z_String_View cset)
   Z_String_View trimmed = s;
 
   while (trimmed.length > 0 && z_sv_contain_char(cset, s.ptr[0])) {
-    trimmed = z_sv_offset(trimmed, 1);
+    trimmed = z_sv_advance(trimmed, 1);
   }
 
   return trimmed;

@@ -25,7 +25,7 @@ Parser_State create_parser(Z_Heap *heap, Json_Token_Array tokens)
   return parser;
 }
 
-Json_Value *create_json_item_object(Parser_State *parser, Z_Map key_value_pairs)
+Json_Value *create_json_item_object(Parser_State *parser, Z_Hash_Table key_value_pairs)
 {
   Json_Value *json_item = z_heap_malloc(parser->heap, sizeof(Json_Value));
   json_item->kind = JSON_VALUE_KIND_OBJECT;
@@ -142,7 +142,6 @@ Json_Value *json_parse_array(Parser_State *parser)
     return NULL;
   }
 
-
   Json_Value_Array array = z_array_new(parser->heap, Json_Value_Array);
 
   do {
@@ -169,7 +168,7 @@ Json_Value *json_parse_value(Parser_State *parser)
   return NULL;
 }
 
-void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
+void json_parse_key_value_pairs(Parser_State *parser, Z_Hash_Table *key_value_pairs)
 {
   if (check(parser, TOKEN_KIND_CLOSE_BRACE)) {
     return;
@@ -193,7 +192,7 @@ void json_parse_key_value_pairs(Parser_State *parser, Z_Map *key_value_pairs)
     return;
   }
 
-  z_map_put(key_value_pairs, z_sv_to_cstr(parser->heap, key.lexeme), value);
+  z_hash_table_put(key_value_pairs, z_sv_to_cstr(parser->heap, key.lexeme), value);
 
   if (match(parser, TOKEN_KIND_COMMA)) {
     json_parse_key_value_pairs(parser, key_value_pairs);
@@ -207,7 +206,7 @@ Json_Value *json_parse_object(Parser_State *parser)
     return NULL;
   }
 
-  Z_Map key_value_pairs = z_map_new(parser->heap, (Z_Compare_Fn)strcmp);
+  Z_Hash_Table key_value_pairs = z_hash_table_new(parser->heap, z_str_equal, z_str_hash);
 
   json_parse_key_value_pairs(parser, &key_value_pairs);
 

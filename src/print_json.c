@@ -44,7 +44,7 @@ void print_json_value(Json_Value *value)
 void print_json_object(Json_Value *json)
 {
   Z_Heap_Auto heap = {0};
-  Z_Key_Value_Array pairs = z_map_to_array(&heap, &json->as.key_value_pairs);
+  Z_Pair_Array pairs = z_hash_table_to_array(&heap, &json->as.key_value_pairs);
 
   if (pairs.length == 0) {
     printf("{}");

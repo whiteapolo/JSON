@@ -6,8 +6,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <z_string.h>
-#include <z_io.h>
-#include <z_memory_manager.h>
+#include <z_file.h>
+#include <z_heap.h>
+#include <z_time.h>
+#include <stdlib.h>
 
 #include "lexer.c"
 #include "parser.c"
@@ -16,6 +18,7 @@
 
 int main(void)
 {
+  Z_Clock start = z_get_clock();
   Z_Heap_Auto heap = {0};
   Z_Maybe_String result = z_read_file(&heap, "./example-data/5MB.json");
 
@@ -33,11 +36,10 @@ int main(void)
 
   Json_Value *json = json_parse(&heap, lexer_result.tokens);
 
-  printf("%zu\n", heap.table.capacity);
-  printf("%zu\n", heap.table.occupied);
+  z_print_elapsed_seconds(start);
 
   if (json) {
-    // print_json(json);
+    print_json(json);
   }
 
   return 0;

@@ -3,6 +3,7 @@
 
 #include "token.h"
 #include <z_map.h>
+#include <z_hash_table.h>
 #include <z_array.h>
 
 typedef enum {
@@ -20,7 +21,7 @@ Z_DEFINE_ARRAY(Json_Value_Array, Json_Value *);
 struct Json_Value {
     Json_Value_Kind kind;
     union {
-        Z_Map key_value_pairs;
+        Z_Hash_Table key_value_pairs;
         Z_String_View string;
         double number;
         Json_Value_Array array;

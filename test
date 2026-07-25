@@ -1,0 +1,27 @@
+~/projects/json (zlib) % ./exe
+0.056418
+~/projects/json (zlib) % ./exe
+0.064344
+~/projects/json (zlib) % ./exe
+0.056611
+~/projects/json (zlib) % ./exe
+0.056374
+~/projects/json (zlib) % ./exe
+0.054909
+~/projects/json (zlib) % ./exe
+0.056527
+~/projects/json (zlib) %
+====================================
+~/projects/json (zlib) % ./exe
+0.049491
+~/projects/json (zlib) % ./exe
+0.049398
+~/projects/json (zlib) % ./exe
+0.059606
+~/projects/json (zlib) % ./exe
+0.049538
+~/projects/json (zlib) % ./exe
+0.059024
+~/projects/json (zlib) % ./exe
+0.048746
+~/projects/json (zlib) %
