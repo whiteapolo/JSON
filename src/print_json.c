@@ -21,18 +21,18 @@ void print_json_value(Json_Value *value)
     switch (value->kind)
     {
         case JSON_VALUE_KIND_NUMBER:
-            printf("%lf", value->as.number);
+            printf("%lf", value->number);
             break;
         case JSON_VALUE_KIND_NULL:
             printf("null");
             break;
         case JSON_VALUE_KIND_STRING:
             printf("\"");
-            z_sv_print(value->as.string);
+            z_sv_print(value->string);
             printf("\"");
             break;
         case JSON_VALUE_KIND_ARRAY:
-            print_json_array(value->as.array);
+            print_json_array(value->array);
             break;
         case JSON_VALUE_KIND_OBJECT:
             print_json_object(value);
@@ -44,13 +44,13 @@ void print_json_object(Json_Value *json)
 {
     Z_Pool_Auto pool = {0};
 
-    if (z_hash_table_size(&json->as.key_value_pairs) == 0) {
+    if (z_hash_table_size(&json->record) == 0) {
         printf("{}");
         return;
     }
 
     Z_Pair pair;
-    Z_Hash_Table_Iter iter = z_hash_table_iter(&json->as.key_value_pairs);
+    Z_Hash_Table_Iter iter = z_hash_table_iter(&json->record);
 
     size_t i = 1;
 
@@ -59,7 +59,7 @@ void print_json_object(Json_Value *json)
         printf("\"%s\": ", (char *)pair.key);
         print_json_value(pair.value);
 
-        if (i == z_hash_table_size(&json->as.key_value_pairs)) {
+        if (i == z_hash_table_size(&json->record)) {
             printf(", ");
         }
 

@@ -35,7 +35,7 @@ int main(void)
     Json_Value *json = json_parse(&pool, lexer_result.tokens);
 
     if (json) {
-        print_json(json);
+        // print_json(json);
     }
 
     return 0;

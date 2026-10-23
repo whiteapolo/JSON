@@ -29,7 +29,7 @@ Json_Value *create_json_item_object(Parser_State *parser, Z_Hash_Table key_value
 {
     Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
     json_item->kind = JSON_VALUE_KIND_OBJECT;
-    json_item->as.key_value_pairs = key_value_pairs;
+    json_item->record = key_value_pairs;
 
     return json_item;
 }
@@ -38,7 +38,7 @@ Json_Value *create_json_item_number(Parser_State *parser, double number)
 {
     Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
     json_item->kind = JSON_VALUE_KIND_NUMBER;
-    json_item->as.number = number;
+    json_item->number = number;
 
     return json_item;
 }
@@ -47,7 +47,7 @@ Json_Value *create_json_item_string(Parser_State *parser, Z_String_View s)
 {
     Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
     json_item->kind = JSON_VALUE_KIND_STRING;
-    json_item->as.string = s;
+    json_item->string = s;
 
     return json_item;
 }
@@ -64,7 +64,7 @@ Json_Value *create_json_item_array(Parser_State *parser, Json_Value_Array array)
 {
     Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
     json_item->kind = JSON_VALUE_KIND_ARRAY;
-    json_item->as.array = array;
+    json_item->array = array;
 
     return json_item;
 }

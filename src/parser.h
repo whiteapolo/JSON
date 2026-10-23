@@ -20,11 +20,11 @@ Z_DEFINE_ARRAY(Json_Value_Array, Json_Value *);
 struct Json_Value {
     Json_Value_Kind kind;
     union {
-        Z_Hash_Table key_value_pairs;
+        Z_Hash_Table record;
         Z_String_View string;
         double number;
         Json_Value_Array array;
-    } as;
+    };
 };
 
 Json_Value *json_parse(Z_Pool *pool, Json_Token_Array tokens);
