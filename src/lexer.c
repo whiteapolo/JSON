@@ -56,6 +56,7 @@ bool is_number_character(char c)
 
 double string_to_number(Z_String_View s)
 {
+    // TODO: no need for dup
     char *nptr = strndup(s.ptr, s.length);
     char *endptr = NULL;
     double value = strtod(nptr, &endptr);
@@ -100,7 +101,7 @@ Json_Token lexer_next(Z_Scanner *scanner)
         return json_token_create_eof(scanner->line, scanner->column);
     }
 
-    if (z_scanner_match_string(scanner, z_sv_from_cstr("null"))) {
+    if (z_scanner_match_string(scanner, z_sv("null"))) {
         return lexer_capture_token(scanner, TOKEN_KIND_NULL);
     }
 
