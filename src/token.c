@@ -3,26 +3,26 @@
 
 Json_Token json_token_create(Json_Token_Kind kind, Z_String_View lexeme, size_t line, size_t column, double number_value)
 {
-  Json_Token token = {
-    .kind = kind,
-    .lexeme = lexeme,
-    .line = line,
-    .column = column,
-    .number_value = number_value,
-  };
+    Json_Token token = {
+        .kind = kind,
+        .lexeme = lexeme,
+        .line = line,
+        .column = column,
+        .number_value = number_value,
+    };
 
-  return token;
+    return token;
 }
 
 Json_Token json_token_create_eof(size_t line, size_t column)
 {
-  Json_Token token = {
-    .kind = TOKEN_KIND_EOF,
-    .line = line,
-    .column = column,
-  };
+    Json_Token token = {
+        .kind = TOKEN_KIND_EOF,
+        .line = line,
+        .column = column,
+    };
 
-  return token;
+    return token;
 }
 
 const char *token_kind_to_string(Json_Token_Kind kind) {
@@ -43,20 +43,20 @@ const char *token_kind_to_string(Json_Token_Kind kind) {
 
 void json_print_token(Json_Token token)
 {
-  printf(
-      "{ kind: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %zu, col: %zu }\n",
-      token_kind_to_string(token.kind),
-      (int)token.lexeme.length,
-      token.lexeme.ptr,
-      token.number_value,
-      token.line,
-      token.column
-  );
+    printf(
+            "{ kind: \"%s\", lexeme: \"%.*s\", number_value: %lf, line: %zu, col: %zu }\n",
+            token_kind_to_string(token.kind),
+            (int)token.lexeme.length,
+            token.lexeme.ptr,
+            token.number_value,
+            token.line,
+            token.column
+          );
 }
 
 void json_print_tokens(Json_Token_Array tokens)
 {
-  for (size_t i = 0; i < tokens.length; i++) {
-    json_print_token(tokens.ptr[i]);
-  }
+    for (size_t i = 0; i < tokens.length; i++) {
+        json_print_token(tokens.ptr[i]);
+    }
 }

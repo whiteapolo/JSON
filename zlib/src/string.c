@@ -1,0 +1,596 @@
+#include "../include/string.h"
+#include "../include/array.h"
+#include "../include/min-max.h"
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+
+#define Z__WHITE_SPACE " \f\n\r\t\v"
+
+int z__size_t_to_int(size_t a);
+size_t z__get_format_length(const char *format, va_list args);
+
+int z__size_t_to_int(size_t a)
+{
+    return a > INT_MAX ? INT_MAX : (int)a;
+}
+
+size_t z__get_format_length(const char *format, va_list args)
+{
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int size = vsnprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+    assert(size >= 0);
+
+    return (size_t)size;
+}
+
+Z_String z_str_new(Z_Pool *pool, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    Z_String s = z_str_new_va(pool, format, args);
+    va_end(args);
+    return s;
+}
+
+Z_String z_str_new_va(Z_Pool *pool, const char *format, va_list args)
+{
+    Z_String s = z_array_new(pool, Z_String);
+    z_str_push_back_va(&s, format, args);
+    return s;
+}
+
+Z_String z_str_new_from_sv(Z_Pool *pool, Z_String_View s)
+{
+    Z_String str = z_array_new(pool, Z_String);
+    z_str_push_back_sv(&str, s);
+    return str;
+}
+
+Z_String z_str_new_from_cstr(Z_Pool *pool, const char *cstr)
+{
+   return z_str_new_from_sv(pool, z_sv(cstr));
+}
+
+char *z_sv_to_cstr(Z_Pool *pool, Z_String_View s)
+{
+    char *ret = z_pool_malloc(pool, sizeof(char) * (s.length + 1));
+    memcpy(ret, s.ptr, sizeof(char) * s.length);
+    ret[s.length] = 0;
+    return ret;
+}
+
+char *z_cstr_dup(Z_Pool *pool, const char *s)
+{
+    return z_sv_to_cstr(pool, z_sv(s));
+}
+
+void z_str_push_back(Z_String *s, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    z_str_push_back_va(s, format, args);
+    va_end(args);
+}
+
+void z_str_push_back_va(Z_String *s, const char *format, va_list args)
+{
+    size_t format_length = z__get_format_length(format, args);
+    z_array_ensure_capacity(s, s->length + format_length + 1);
+
+    va_list args_copy;
+    va_copy(args_copy, args);
+    vsnprintf(s->ptr + s->length, format_length + 1, format, args_copy);
+    va_end(args_copy);
+
+    s->length += format_length;
+}
+
+void z_str_push_back_sv(Z_String *target, Z_String_View source)
+{
+    z_array_push_back_array(target, source);
+    z_array_zero_terminate(target);
+}
+
+void z_str_push_back_char(Z_String *s, char c)
+{
+    z_array_push_back(s, c);
+    z_array_zero_terminate(s);
+}
+
+void z_str_push_back_cstr(Z_String *s, const char *cstr)
+{
+    z_str_push_back_sv(s, z_sv(cstr));
+}
+
+bool z_str_push_back_file(Z_String *s, const char *pathname)
+{
+    FILE *fp = fopen(pathname, "r");
+
+    if (fp == NULL) {
+        return false;
+    }
+
+    size_t file_size = z__get_file_size(fp);
+
+    z_array_ensure_capacity(s, s->length + file_size);
+    s->length += fread(s->ptr + s->length, 1, file_size, fp);
+    z_array_zero_terminate(s);
+    fclose(fp);
+
+    return true;
+}
+
+void z_str_insert(Z_String *s, size_t index, const char *format, ...);
+void z_str_insert_va(Z_String *s, size_t index, const char *format, ...);
+void z_str_insert_cstr(Z_String *s, const char *cstr, size_t index);
+
+// void z_str_insert_sv(Z_String *target, Z_String_View source, size_t index)
+// {
+
+// }
+
+void z_str_insert_char(Z_String *s, char c, size_t index)
+{
+    z_array_insert(s, c, index);
+    z_array_zero_terminate(s);
+}
+
+void z_str_push_front(Z_String *s, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    z_str_push_front_va(s, format, args);
+    va_end(args);
+}
+
+void z_str_push_front_va(Z_String *s, const char *format, va_list args)
+{
+    size_t format_length = z__get_format_length(format, args);
+    z_array_reserve_space_at(s, 0, format_length);
+    char save_char_since_printf_override_with_null = s->ptr[format_length];
+    vsnprintf(s->ptr, format_length + 1, format, args);
+    s->ptr[format_length] = save_char_since_printf_override_with_null;
+}
+
+void z_str_push_front_sv(Z_String *target, Z_String_View source)
+{
+    z_str_push_front(target, "%.*s", z__size_t_to_int(source.length), source.ptr);
+}
+
+void z_str_push_front_char(Z_String *s, char c)
+{
+    z_array_insert(s, c, 0);
+    z_array_zero_terminate(s);
+}
+
+char z_str_pop_char(Z_String *s)
+{
+    assert(s->length > 0);
+    char c = z_array_pop_back(s);
+    z_array_zero_terminate(s);
+    return c;
+}
+
+void z_str_replace(Z_String *s, Z_String_View target, Z_String_View replacement)
+{
+    Z_Pool_Auto pool = {0};
+    Z_String tmp = z_str_new(&pool, "");
+
+    size_t i = 0;
+
+    while (i < s->length) {
+        if (z_sv_equal_n(z_sv_advance(z_sv(s), i), target, target.length)) {
+            z_str_push_back_sv(&tmp, replacement);
+            i += target.length;
+        } else {
+            z_str_push_back_char(&tmp, s->ptr[i]);
+            i++;
+        }
+    }
+
+    z_str_clear(s);
+    z_str_push_back(s, "%s", tmp.ptr);
+}
+
+Z_Sv_Split_Iter z_sv_split_iter(Z_String_View s, Z_String_View delimeter)
+{
+    Z_Sv_Split_Iter iter = {
+        .s = s,
+        .delimeter = delimeter,
+        .current = 0,
+    };
+
+    return iter;
+}
+
+bool z_sv_split_iter_next(Z_Sv_Split_Iter *iter, Z_String_View *slice)
+{
+    if (iter->current > iter->s.length) {
+        return false;
+    }
+
+    Z_String_View small_world = z_sv_advance(iter->s, iter->current);
+    ssize_t next = z_sv_find_index(small_world, iter->delimeter);
+
+    if (next < 0) {
+        iter->current += small_world.length + 1;
+        *slice = small_world;
+        return true;
+    }
+
+    iter->current += (size_t)next + iter->delimeter.length;
+    *slice = z_sv_substring(small_world, 0, (size_t)next);
+    return true;
+}
+
+void z_str_split(Z_String_View s, Z_String_View delimiter, Z_String_Array *out)
+{
+    Z_Sv_Split_Iter iter = z_sv_split_iter(s, delimiter);
+    Z_String_View curr;
+
+    while (z_sv_split_iter_next(&iter, &curr)) {
+        z_array_push_back(out, z_str_new_from_sv(out->pool, curr));
+    }
+}
+
+Z_String_View z_sv_split_part(Z_String_View s, Z_String_View delimiter, size_t index)
+{
+    Z_Sv_Split_Iter iter = z_sv_split_iter(s, delimiter);
+    Z_String_View slice;
+
+    for (size_t i = 0; i < index; i++) {
+        z_sv_split_iter_next(&iter, &slice);
+    }
+
+    assert(z_sv_split_iter_next(&iter, &slice) && "index of split is overreaching");
+    return slice;
+}
+
+Z_String_View z_sv_from_str_ptr(const Z_String *s)
+{
+    Z_String_View view = {
+        .ptr = s->ptr,
+        .length = s->length
+    };
+
+    return view;
+}
+
+Z_String_View z_sv_from_str(Z_String s)
+{
+    Z_String_View view = {
+        .ptr = s.ptr,
+        .length = s.length
+    };
+
+    return view;
+}
+
+Z_String_View z_sv_from_cstr(const char *s)
+{
+    Z_String_View view = {
+        .ptr = s,
+        .length = strlen(s)
+    };
+
+    return view;
+}
+
+Z_String_View z_sv_advance(Z_String_View s, size_t offset)
+{
+    Z_String_View view = {
+        .ptr = s.ptr + offset,
+        .length = z__size_t_to_int(s.length) - z__size_t_to_int(offset) < 0 ? 0 : s.length - offset,
+    };
+
+    return view;
+}
+
+Z_String_View z_sv_substring(Z_String_View s, size_t start, size_t length)
+{
+    Z_String_View view = {
+        .ptr = s.ptr + start,
+        .length = length,
+    };
+
+    return view;
+}
+
+char z_sv_top(Z_String_View s)
+{
+    return s.ptr[s.length - 1];
+}
+
+int z_sv_compare(Z_String_View a, Z_String_View b)
+{
+    int result = memcmp(a.ptr, b.ptr, Z_MIN(a.length, b.length));
+
+    if (result == 0) {
+        return z__size_t_to_int(a.length) - z__size_t_to_int(b.length);
+    }
+
+    return result;
+}
+
+bool z_sv_equal(Z_String_View a, Z_String_View b)
+{
+    return z_sv_compare(a, b) == 0;
+}
+
+bool z_sv_like(Z_String_View str, Z_String_View pattern)
+{
+    ssize_t last_wildcard_match = -1;
+    ssize_t last_pattern_wildcard = -1;
+    size_t i = 0;
+    size_t j = 0;
+
+    while (i < str.length && j < pattern.length) {
+        if (pattern.ptr[j] == '%') {
+            last_pattern_wildcard = (ssize_t)j;
+            last_wildcard_match = (ssize_t)i;
+            j++;
+        } else if (str.ptr[i] == pattern.ptr[j] || pattern.ptr[j] == '_') {
+            i++;
+            j++;
+        } else if (last_pattern_wildcard != -1) {
+            j = (size_t)last_pattern_wildcard + 1;
+            i = (size_t)++last_wildcard_match;
+        } else {
+            return false;
+        }
+    }
+
+    if (i == str.length && j == pattern.length) {
+        return true;
+    }
+
+    if ((j == pattern.length || j + 1 == pattern.length) && z_sv_top(pattern) == '%') {
+        return true;
+    }
+
+    return false;
+}
+
+int z_sv_compare_n(Z_String_View a, Z_String_View b, size_t n)
+{
+    size_t length = Z_MIN(n, Z_MIN(a.length, b.length));
+    int result = memcmp(a.ptr, b.ptr, length);
+
+    if (result != 0) return result;
+    if (n <= length) return 0;
+    if (a.length < b.length) return -1;
+    if (a.length > b.length) return 1;
+    return 0;
+}
+
+bool z_sv_equal_n(Z_String_View a, Z_String_View b, size_t n)
+{
+    return z_sv_compare_n(a, b, n) == 0;
+}
+
+bool z_sv_ends_with(Z_String_View s, Z_String_View end)
+{
+    if (s.length < end.length) {
+        return false;
+    }
+
+    Z_String_View endings = {
+        .ptr = s.ptr + s.length - end.length,
+        .length = end.length,
+    };
+
+    return z_sv_equal(endings, end);
+}
+
+bool z_sv_starts_with(Z_String_View s, Z_String_View start)
+{
+    if (start.length > s.length) {
+        return false;
+    }
+
+    return z_sv_equal_n(s, start, start.length);
+}
+
+bool z_sv_contains(Z_String_View haystack, Z_String_View needle)
+{
+    return z_sv_find_index(haystack, needle) != -1;
+}
+
+bool z_sv_contains_char(Z_String_View s, char c)
+{
+    return memchr(s.ptr, c, s.length);
+}
+
+ssize_t z_sv_find_index(Z_String_View haystack, Z_String_View needle)
+{
+    if (needle.length == 0) {
+        return 0;
+    }
+
+    if (needle.length > haystack.length) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < haystack.length - needle.length + 1; i++) {
+        if (memcmp(haystack.ptr + i, needle.ptr, needle.length) == 0) {
+            return (ssize_t)i;
+        }
+    }
+
+    return -1;
+}
+
+void z_str_trim(Z_String *s)
+{
+    z_str_trim_right(s);
+    z_str_trim_left(s);
+}
+
+void z_str_trim_cset(Z_String *s, Z_String_View cset)
+{
+    z_str_trim_right_cset(s, cset);
+    z_str_trim_left_cset(s, cset);
+}
+
+void z_str_trim_right(Z_String *s)
+{
+    z_str_trim_right_cset(s, z_sv(Z__WHITE_SPACE));
+}
+
+void z_str_trim_left(Z_String *s)
+{
+    z_str_trim_left_cset(s, z_sv(Z__WHITE_SPACE));
+}
+
+void z_str_trim_right_cset(Z_String *s, Z_String_View cset)
+{
+    Z_String_View trimmed = z_sv_trim_right_cset(z_sv(s), cset);
+    memmove(s->ptr, trimmed.ptr, trimmed.length);
+    s->length = trimmed.length;
+    z_array_zero_terminate(s);
+}
+
+void z_str_trim_left_cset(Z_String *s, Z_String_View cset)
+{
+    Z_String_View trimmed = z_sv_trim_left_cset(z_sv(s), cset);
+    memmove(s->ptr, trimmed.ptr, trimmed.length);
+    s->length = trimmed.length;
+    z_array_zero_terminate(s);
+}
+
+Z_String_View z_sv_trim(Z_String_View s)
+{
+    return z_sv_trim_cset(s, z_sv(Z__WHITE_SPACE));
+}
+
+Z_String_View z_sv_trim_cset(Z_String_View s, Z_String_View cset)
+{
+    Z_String_View trimmed = z_sv_trim_right_cset(s, cset);
+    return z_sv_trim_left_cset(trimmed, cset);
+}
+
+Z_String_View z_sv_trim_right(Z_String_View s)
+{
+    return z_sv_trim_right_cset(s, z_sv(Z__WHITE_SPACE));
+}
+
+Z_String_View z_sv_trim_right_cset(Z_String_View s, Z_String_View cset)
+{
+    Z_String_View trimmed = s;
+
+    while (trimmed.length > 0 && z_sv_contains_char(cset, z_sv_top(trimmed))) {
+        trimmed.length--;
+    }
+
+    return trimmed;
+}
+
+Z_String_View z_sv_trim_left(Z_String_View s)
+{
+    return z_sv_trim_left_cset(s, z_sv(Z__WHITE_SPACE));
+}
+
+Z_String_View z_sv_trim_left_cset(Z_String_View s, Z_String_View cset)
+{
+    Z_String_View trimmed = s;
+
+    while (trimmed.length > 0 && z_sv_contains_char(cset, s.ptr[0])) {
+        trimmed = z_sv_advance(trimmed, 1);
+    }
+
+    return trimmed;
+}
+
+void z_sv_print(Z_String_View s)
+{
+    printf("%.*s", z__size_t_to_int(s.length), s.ptr);
+}
+
+void z_sv_println(Z_String_View s)
+{
+    printf("%.*s\n", z__size_t_to_int(s.length), s.ptr);
+}
+
+void z_str_clear(Z_String *s)
+{
+    s->length = 0;
+    z_array_zero_terminate(s);
+}
+
+void z_str_override(Z_String *s, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    z_str_override_va(s, format, args);
+    va_end(args);
+}
+
+void z_str_override_va(Z_String *s, const char *format, va_list args)
+{
+    z_str_clear(s);
+    z_str_push_back_va(s, format, args);
+}
+
+
+size_t z_sv_get_edit_distance(Z_String_View a, Z_String_View b)
+{
+	size_t row[a.length + 1];
+
+	for (size_t j = 0; j <= a.length; j++) {
+		row[j] = j;
+    }
+
+	for (size_t i = 1; i <= b.length; i++) {
+        size_t topleft = i - 1;
+		row[0] = i;
+
+		for (size_t j = 1; j <= a.length; j++) {
+			size_t curr;
+
+			if (a.ptr[j-1] == b.ptr[i-1]) {
+				curr = topleft;
+            } else {
+				curr = 1 + Z_MIN3(topleft, row[j], row[j-1]);
+            }
+
+			topleft = row[j];
+			row[j] = curr;
+		}
+	}
+
+	return row[a.length];
+}
+
+// int z_sv_get_edit_distance_f(Z_String_View a, Z_String_View b, int compare_char(char a, char b))
+// {
+// 	int row[a.length + 1];
+
+// 	for (int j = 0; j <= a.length; j++) {
+// 		row[j] = j;
+//     }
+
+// 	for (int i = 1; i <= b.length; i++) {
+//         int topleft = i - 1;
+// 		row[0] = i;
+
+// 		for (int j = 1; j <= a.length; j++) {
+// 			int curr;
+
+// 			if (compare_char(a.ptr[j-1], b.ptr[i-1]) == 0) {
+// 				curr = topleft;
+//             } else {
+// 				curr = 1 + Z_MIN3(topleft, row[j], row[j-1]);
+//             }
+
+// 			topleft = row[j];
+// 			row[j] = curr;
+// 		}
+// 	}
+
+// 	return row[a.length];
+// }
+
+unsigned int z_sv_get_edit_distance_case_insensitive(Z_String_View a, Z_String_View b);
