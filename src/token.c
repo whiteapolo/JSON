@@ -1,30 +1,6 @@
 #include "token.h"
 #include <stdio.h>
 
-Json_Token json_token_create(Json_Token_Kind kind, Z_String_View lexeme, size_t line, size_t column, double number_value)
-{
-    Json_Token token = {
-        .kind = kind,
-        .lexeme = lexeme,
-        .line = line,
-        .column = column,
-        .number_value = number_value,
-    };
-
-    return token;
-}
-
-Json_Token json_token_create_eof(size_t line, size_t column)
-{
-    Json_Token token = {
-        .kind = TOKEN_KIND_EOF,
-        .line = line,
-        .column = column,
-    };
-
-    return token;
-}
-
 const char *token_kind_to_string(Json_Token_Kind kind) {
     switch (kind) {
         case TOKEN_KIND_EOF:           return "EOF";
@@ -37,6 +13,7 @@ const char *token_kind_to_string(Json_Token_Kind kind) {
         case TOKEN_KIND_CLOSE_BRACE:   return "CLOSE_BRACE";
         case TOKEN_KIND_OPEN_BRACKET:  return "OPEN_BRACKET";
         case TOKEN_KIND_CLOSE_BRACKET: return "CLOSE_BRACKET";
+        case TOKEN_KIND_BOOLEAN:       return "BOOLEAN";
         default:                       return "UNKNOWN";
     }
 }
@@ -48,7 +25,7 @@ void json_print_token(Json_Token token)
             token_kind_to_string(token.kind),
             (int)token.lexeme.length,
             token.lexeme.ptr,
-            token.number_value,
+            token.number,
             token.line,
             token.column
           );

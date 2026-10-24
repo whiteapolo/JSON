@@ -8,27 +8,68 @@
 #include <stdlib.h>
 #include "../zlib/include/scanner.h"
 
-Json_Token lexer_capture_token(const Z_Scanner *scanner, Json_Token_Kind kind)
+Json_Token lexer_capture(const Z_Scanner *scanner, Json_Token_Kind kind)
 {
-    return json_token_create(kind, z_scanner_capture(scanner), scanner->line, scanner->column, 0);
+    Json_Token token = {
+        .kind = kind,
+        .lexeme = z_scanner_capture(scanner),
+        .line = scanner->line,
+        .column = scanner->column,
+    };
+
+    return token;
 }
 
-Json_Token lexer_capture_number_token(const Z_Scanner *scanner, double number_value)
+Json_Token lexer_capture_number(const Z_Scanner *scanner, double value)
 {
-    return json_token_create(TOKEN_KIND_NUMBER, z_scanner_capture(scanner), scanner->line, scanner->column, number_value);
+    Json_Token token = {
+        .kind = TOKEN_KIND_NUMBER,
+        .lexeme = z_scanner_capture(scanner),
+        .line = scanner->line,
+        .column = scanner->column,
+        .number = value,
+    };
+
+    return token;
+}
+
+Json_Token lexer_capture_boolean(const Z_Scanner *scanner, bool value)
+{
+    Json_Token token = {
+        .kind = TOKEN_KIND_BOOLEAN,
+        .lexeme = z_scanner_capture(scanner),
+        .line = scanner->line,
+        .column = scanner->column,
+        .boolean = value,
+    };
+
+    return token;
+}
+
+Json_Token lexer_capture_eof(const Z_Scanner *scanner)
+{
+    Json_Token token = {
+        .kind = TOKEN_KIND_EOF,
+        .line = scanner->line,
+        .column = scanner->column,
+    };
+
+    return token;
 }
 
 Json_Token lexer_capture_error(const Z_Scanner *scanner, const char *expected)
 {
-    Json_Token token = lexer_capture_token(scanner, TOKEN_KIND_ERROR);
+    Json_Token token = lexer_capture(scanner, TOKEN_KIND_ERROR);
+
     printf(
-            "%s, But found: '%.*s', At: %zu:%zu\n",
-            expected,
-            (int)token.lexeme.length,
-            token.lexeme.ptr,
-            token.line,
-            token.column
-          );
+        "%s, But found: '%.*s', At: %zu:%zu\n",
+        expected,
+        (int)token.lexeme.length,
+        token.lexeme.ptr,
+        token.line,
+        token.column
+    );
+
     return token;
 }
 
@@ -40,7 +81,7 @@ Json_Token lexer_string(Z_Scanner *scanner)
         z_scanner_advance(scanner, 1);
     }
 
-    Json_Token token = lexer_capture_token(scanner, TOKEN_KIND_STRING);
+    Json_Token token = lexer_capture(scanner, TOKEN_KIND_STRING);
 
     if (!z_scanner_match(scanner, '"')) {
         return lexer_capture_error(scanner, "Expected '\"' at line end");
@@ -83,7 +124,7 @@ Json_Token lexer_number(Z_Scanner *scanner)
         return lexer_capture_error(scanner, "Expected number");
     }
 
-    return lexer_capture_number_token(scanner, value);
+    return lexer_capture_number(scanner, value);
 }
 
 Json_Token lexer_unknown(Z_Scanner *scanner)
@@ -98,11 +139,19 @@ Json_Token lexer_next(Z_Scanner *scanner)
     z_scanner_reset_mark(scanner);
 
     if (z_scanner_is_at_end(scanner)) {
-        return json_token_create_eof(scanner->line, scanner->column);
+        return lexer_capture_eof(scanner);
     }
 
     if (z_scanner_match_string(scanner, z_sv("null"))) {
-        return lexer_capture_token(scanner, TOKEN_KIND_NULL);
+        return lexer_capture(scanner, TOKEN_KIND_NULL);
+    }
+
+    if (z_scanner_match_string(scanner, z_sv("false"))) {
+        return lexer_capture_boolean(scanner, false);
+    }
+
+    if (z_scanner_match_string(scanner, z_sv("true"))) {
+        return lexer_capture_boolean(scanner, true);
     }
 
     char c = z_scanner_peek(scanner);
@@ -113,12 +162,12 @@ Json_Token lexer_next(Z_Scanner *scanner)
     }
 
     switch (c) {
-        case ',': return lexer_capture_token(scanner, TOKEN_KIND_COMMA);
-        case '{': return lexer_capture_token(scanner, TOKEN_KIND_OPEN_BRACE);
-        case '}': return lexer_capture_token(scanner, TOKEN_KIND_CLOSE_BRACE);
-        case '[': return lexer_capture_token(scanner, TOKEN_KIND_OPEN_BRACKET);
-        case ']': return lexer_capture_token(scanner, TOKEN_KIND_CLOSE_BRACKET);
-        case ':': return lexer_capture_token(scanner, TOKEN_KIND_COLON);
+        case ',': return lexer_capture(scanner, TOKEN_KIND_COMMA);
+        case '{': return lexer_capture(scanner, TOKEN_KIND_OPEN_BRACE);
+        case '}': return lexer_capture(scanner, TOKEN_KIND_CLOSE_BRACE);
+        case '[': return lexer_capture(scanner, TOKEN_KIND_OPEN_BRACKET);
+        case ']': return lexer_capture(scanner, TOKEN_KIND_CLOSE_BRACKET);
+        case ':': return lexer_capture(scanner, TOKEN_KIND_COLON);
         case '"': return lexer_string(scanner);
         default: return lexer_unknown(scanner);
     }

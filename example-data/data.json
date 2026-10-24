@@ -1,4 +1,7 @@
 {
-  "itay": null,
-  "array": [1, 2, {}]
+  "name": "Jane Smith",
+  "age": 30,
+  "hey": {},
+  "isStudent": true,
+  "skills": ["Python", "JavaScript", "SQL"]
 }

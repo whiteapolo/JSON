@@ -9,6 +9,7 @@ typedef enum {
     JSON_VALUE_KIND_OBJECT,
     JSON_VALUE_KIND_STRING,
     JSON_VALUE_KIND_NUMBER,
+    JSON_VALUE_KIND_BOOLEAN,
     JSON_VALUE_KIND_ARRAY,
     JSON_VALUE_KIND_NULL,
 } Json_Value_Kind;
@@ -24,6 +25,7 @@ struct Json_Value {
         Z_String_View string;
         Json_Value_Array array;
         double number;
+        bool boolean;
     };
 };
 

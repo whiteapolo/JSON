@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "token.h"
+#include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -39,6 +40,15 @@ Json_Value *create_json_item_number(Parser_State *parser, double number)
     Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
     json_item->kind = JSON_VALUE_KIND_NUMBER;
     json_item->number = number;
+
+    return json_item;
+}
+
+Json_Value *create_json_item_boolean(Parser_State *parser, bool value)
+{
+    Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
+    json_item->kind = JSON_VALUE_KIND_BOOLEAN;
+    json_item->boolean = value;
 
     return json_item;
 }
@@ -160,7 +170,8 @@ Json_Value *json_parse_array(Parser_State *parser)
 Json_Value *json_parse_value(Parser_State *parser)
 {
     if (check(parser, TOKEN_KIND_OPEN_BRACE)) return json_parse_object(parser);
-    if (match(parser, TOKEN_KIND_NUMBER)) return create_json_item_number(parser, previous(parser).number_value);
+    if (match(parser, TOKEN_KIND_NUMBER)) return create_json_item_number(parser, previous(parser).number);
+    if (match(parser, TOKEN_KIND_BOOLEAN)) return create_json_item_boolean(parser, previous(parser).boolean);
     if (match(parser, TOKEN_KIND_STRING)) return create_json_item_string(parser, previous(parser).lexeme);
     if (match(parser, TOKEN_KIND_NULL)) return create_json_item_null(parser);
     if (check(parser, TOKEN_KIND_OPEN_BRACKET)) return json_parse_array(parser);
