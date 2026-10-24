@@ -22,8 +22,8 @@ struct Json_Value {
     union {
         Z_Hash_Table record;
         Z_String_View string;
-        double number;
         Json_Value_Array array;
+        double number;
     };
 };
 
