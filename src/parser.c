@@ -176,7 +176,7 @@ Json_Value *json_parse_value(Parser_State *parser)
     if (match(parser, TOKEN_KIND_NULL)) return create_json_item_null(parser);
     if (check(parser, TOKEN_KIND_OPEN_BRACKET)) return json_parse_array(parser);
 
-    parse_error(parser, "Expected: object | string | number | array");
+    parse_error(parser, "Expected: string | number | boolean | array | object");
     return NULL;
 }
 
