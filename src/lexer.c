@@ -95,20 +95,21 @@ bool is_number_character(char c)
     return isdigit(c) || strchr(".e-+", c);
 }
 
-double string_to_number(Z_String_View s)
+bool string_to_number(Z_String_View s, double *result)
 {
-    // TODO: no need for dup
-    char *nptr = strndup(s.ptr, s.length);
+    char buf[s.length + 1];
+    strncpy(buf, s.ptr, s.length + 1);
+
+    char *nptr = buf;
     char *endptr = NULL;
     double value = strtod(nptr, &endptr);
 
     if (nptr == endptr) {
-        free(nptr);
-        return NAN;
+        return false;
     }
 
-    free(nptr);
-    return value;
+    *result = value;
+    return true;
 }
 
 Json_Token lexer_number(Z_Scanner *scanner)
@@ -118,9 +119,9 @@ Json_Token lexer_number(Z_Scanner *scanner)
     }
 
     Z_String_View lexeme = z_scanner_capture(scanner);
-    double value = string_to_number(lexeme);
+    double value;
 
-    if (isnan(value)) {
+    if (!string_to_number(lexeme, &value)) {
         return lexer_capture_error(scanner, "Expected number");
     }
 

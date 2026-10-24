@@ -21,7 +21,7 @@ void print_json_array(Json_Value_Array array, int level, int indentation)
         print_json_value(array.ptr[i], level + 1, indentation);
 
         if (i != array.length - 1) {
-            printf(", ");
+            printf(",");
         }
 
         printf("\n");
@@ -36,7 +36,7 @@ void print_json_value(Json_Value *value, int level, int indentation)
     switch (value->kind)
     {
         case JSON_VALUE_KIND_NUMBER:
-            printf("%lf", value->number);
+            printf("%g", value->number);
             break;
         case JSON_VALUE_KIND_BOOLEAN:
             printf(value->boolean ? "true" : "false");

@@ -23,8 +23,10 @@ typedef struct {
     size_t line;
     size_t column;
     Z_String_View lexeme;
-    double number;
-    bool boolean;
+    union {
+        double number;
+        bool boolean;
+    };
 } Json_Token;
 
 Z_DEFINE_ARRAY(Json_Token_Array, Json_Token);
