@@ -40,7 +40,7 @@ int main(void)
     z_time_print_elapsed_mseconds(start);
 
     if (json) {
-        // print_json(json);
+        print_json(json);
     }
 
     return 0;
