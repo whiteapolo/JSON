@@ -3,238 +3,244 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
+#include "../zlib/include/scanner.h"
 
 typedef struct {
     Z_Pool *pool;
-    Json_Token_Array tokens;
-    int curr;
-    bool had_error;
+    Z_Scanner scanner;
 } Parser_State;
 
-Json_Value *json_parse_object(Parser_State *parser);
-Json_Value *json_parse_value(Parser_State *parser);
+bool is_number_character(char c);
+bool string_to_number(Z_String_View s, double *result);
 
-Parser_State create_parser(Z_Pool *pool, Json_Token_Array tokens)
+Json_Value *json_parse(Z_Pool *pool, Z_String_View document);
+Json_Value *json_parse_value(Parser_State *state);
+Json_Value *json_parse_object(Parser_State *state);
+Json_Value *json_parse_array(Parser_State *state);
+Json_Value *json_parse_number(Parser_State *state);
+Json_Value *json_parse_string(Parser_State *state);
+
+Json_Value *create_json_object(Z_Pool *pool, Z_Hash_Table object);
+Json_Value *create_json_array(Z_Pool *pool, Json_Value_Array array);
+Json_Value *create_json_null(Z_Pool *pool);
+Json_Value *create_json_string(Z_Pool *pool, Z_String_View value);
+Json_Value *create_json_boolean(Z_Pool *pool, bool value);
+Json_Value *create_json_number(Z_Pool *pool, double value);
+
+bool is_number_character(char c)
+{
+    return isdigit(c) || strchr(".e-+", c);
+}
+
+bool string_to_number(Z_String_View s, double *result)
+{
+    char buf[s.length + 1];
+    strncpy(buf, s.ptr, s.length + 1);
+
+    char *nptr = buf;
+    char *endptr = NULL;
+    double value = strtod(nptr, &endptr);
+
+    if (nptr == endptr) {
+        return false;
+    }
+
+    *result = value;
+    return true;
+}
+
+Json_Value *create_json_string(Z_Pool *pool, Z_String_View value)
+{
+    Json_Value *result = z_pool_malloc(pool, sizeof(Json_Value));
+    result->kind = JSON_VALUE_STRING;
+    result->string = z_str_new_from_sv(pool, value);
+
+    return result;
+}
+
+Json_Value *create_json_boolean(Z_Pool *pool, bool value)
+{
+    Json_Value *result = z_pool_malloc(pool, sizeof(Json_Value));
+    result->kind = JSON_VALUE_BOOLEAN;
+    result->boolean = value;
+
+    return result;
+}
+
+Json_Value *create_json_number(Z_Pool *pool, double value)
+{
+    Json_Value *result = z_pool_malloc(pool, sizeof(Json_Value));
+    result->kind = JSON_VALUE_NUMBER;
+    result->number = value;
+
+    return result;
+}
+
+Json_Value *create_json_null(Z_Pool *pool)
+{
+    Json_Value *result = z_pool_malloc(pool, sizeof(Json_Value));
+    result->kind = JSON_VALUE_NULL;
+
+    return result;
+}
+
+Json_Value *create_json_array(Z_Pool *pool, Json_Value_Array array)
+{
+    Json_Value *result = z_pool_malloc(pool, sizeof(Json_Value));
+    result->kind = JSON_VALUE_ARRAY;
+    result->array = array;
+
+    return result;
+}
+
+Json_Value *create_json_object(Z_Pool *pool, Z_Hash_Table object)
+{
+    Json_Value *result = z_pool_malloc(pool, sizeof(Json_Value));
+    result->kind = JSON_VALUE_OBJECT;
+    result->object = object;
+
+    return result;
+}
+
+bool parse_string_literal(Parser_State *state, Z_String_View *result)
+{
+    z_scanner_reset_mark(&state->scanner);
+    z_scanner_advance_until(&state->scanner, '"');
+
+    if (z_scanner_is_at_end(&state->scanner)) {
+        return false;
+    }
+
+    *result = z_scanner_capture(&state->scanner);
+    z_scanner_advance(&state->scanner);
+
+    return true;
+}
+
+Json_Value *json_parse_string(Parser_State *state)
+{
+    z_scanner_reset_mark(&state->scanner);
+    z_scanner_advance_until(&state->scanner, '"');
+
+    if (z_scanner_is_at_end(&state->scanner)) {
+        return NULL;
+    }
+
+    Z_String_View value = z_scanner_capture(&state->scanner);
+    Json_Value *result = create_json_string(state->pool, value);
+    z_scanner_advance(&state->scanner);
+
+    return result;
+}
+
+Json_Value *json_parse_number(Parser_State *state)
+{
+    while (!z_scanner_is_at_end(&state->scanner) && is_number_character(z_scanner_peek(&state->scanner))) {
+        z_scanner_advance(&state->scanner);
+    }
+
+    Z_String_View lexeme = z_scanner_capture(&state->scanner);
+    double value;
+
+    if (!string_to_number(lexeme, &value)) {
+        return NULL;
+    }
+
+    return create_json_number(state->pool, value);
+}
+
+Json_Value *json_parse_array(Parser_State *state)
+{
+    z_scanner_skip_spaces(&state->scanner);
+    Json_Value_Array array = z_array_new(state->pool, Json_Value_Array);
+
+    if (z_scanner_match(&state->scanner, ']')) {
+        return create_json_array(state->pool, array);
+    }
+
+    do {
+        Json_Value *item = json_parse_value(state);
+        if (item == NULL) return NULL;
+        z_array_push_back(&array, *item);
+        z_scanner_skip_spaces(&state->scanner);
+    } while (z_scanner_match(&state->scanner, ','));
+
+    if (!z_scanner_match(&state->scanner, ']')) {
+        return NULL;
+    }
+
+    return create_json_array(state->pool, array);
+}
+
+Json_Value *json_parse_object(Parser_State *state)
+{
+    z_scanner_skip_spaces(&state->scanner);
+
+    Z_Hash_Table object = z_hash_table_new(state->pool, z_str_equal, z_str_hash);
+
+    if (z_scanner_match(&state->scanner, '}')) {
+        return create_json_object(state->pool, object);
+    }
+
+    do {
+        z_scanner_skip_spaces(&state->scanner);
+        if (!z_scanner_match(&state->scanner, '"')) return NULL;
+        Z_String_View key;
+        if (!parse_string_literal(state, &key)) return NULL;
+        z_scanner_skip_spaces(&state->scanner);
+        if (!z_scanner_match(&state->scanner, ':')) return NULL;
+        Json_Value *value = json_parse_value(state);
+        if (value == NULL) return NULL;
+
+        z_hash_table_put(&object, z_sv_to_cstr(state->pool, key), value);
+        z_scanner_skip_spaces(&state->scanner);
+    } while (z_scanner_match(&state->scanner, ','));
+
+    if (!z_scanner_match(&state->scanner, '}')) {
+        return NULL;
+    }
+
+    return create_json_object(state->pool, object);
+}
+
+Json_Value *json_parse_value(Parser_State *state)
+{
+    z_scanner_skip_spaces(&state->scanner);
+    z_scanner_reset_mark(&state->scanner);
+
+    if (z_scanner_match_string(&state->scanner, z_sv("null"))) {
+        return create_json_null(state->pool);
+    }
+
+    if (z_scanner_match_string(&state->scanner, z_sv("true"))) {
+        return create_json_boolean(state->pool, true);
+    }
+
+    if (z_scanner_match_string(&state->scanner, z_sv("false"))) {
+        return create_json_boolean(state->pool, false);
+    }
+
+    char c = z_scanner_advance(&state->scanner);
+
+    if (is_number_character(c)) {
+        return json_parse_number(state);
+    }
+
+    switch (c) {
+        case '"': return json_parse_string(state);
+        case '[': return json_parse_array(state);
+        case '{': return json_parse_object(state);
+        default:  return NULL;
+    }
+}
+
+Json_Value *json_parse(Z_Pool *pool, Z_String_View document)
 {
     Parser_State parser = {
         .pool = pool,
-        .curr = 0,
-        .had_error = false,
-        .tokens = tokens,
+        .scanner = z_scanner_new(document),
     };
 
-    return parser;
-}
-
-Json_Value *create_json_item_object(Parser_State *parser, Z_Hash_Table key_value_pairs)
-{
-    Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
-    json_item->kind = JSON_VALUE_KIND_OBJECT;
-    json_item->record = key_value_pairs;
-
-    return json_item;
-}
-
-Json_Value *create_json_item_number(Parser_State *parser, double number)
-{
-    Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
-    json_item->kind = JSON_VALUE_KIND_NUMBER;
-    json_item->number = number;
-
-    return json_item;
-}
-
-Json_Value *create_json_item_boolean(Parser_State *parser, bool value)
-{
-    Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
-    json_item->kind = JSON_VALUE_KIND_BOOLEAN;
-    json_item->boolean = value;
-
-    return json_item;
-}
-
-Json_Value *create_json_item_string(Parser_State *parser, Z_String_View s)
-{
-    Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
-    json_item->kind = JSON_VALUE_KIND_STRING;
-    json_item->string = s;
-
-    return json_item;
-}
-
-Json_Value *create_json_item_null(Parser_State *parser)
-{
-    Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
-    json_item->kind = JSON_VALUE_KIND_NULL;
-
-    return json_item;
-}
-
-Json_Value *create_json_item_array(Parser_State *parser, Json_Value_Array array)
-{
-    Json_Value *json_item = z_pool_malloc(parser->pool, sizeof(Json_Value));
-    json_item->kind = JSON_VALUE_KIND_ARRAY;
-    json_item->array = array;
-
-    return json_item;
-}
-
-Json_Token peek(const Parser_State *parser)
-{
-    return parser->tokens.ptr[parser->curr];
-}
-
-Json_Token advance(Parser_State *parser)
-{
-    return parser->tokens.ptr[parser->curr++];
-}
-
-bool is_at_end(const Parser_State *parser)
-{
-    return peek(parser).kind == TOKEN_KIND_EOF;
-}
-
-bool match(Parser_State *parser, Json_Token_Kind kind)
-{
-    if (parser->had_error) {
-        return false;
-    }
-
-    if (!is_at_end(parser) && peek(parser).kind == kind) {
-        advance(parser);
-        return true;
-    }
-
-    return false;
-}
-
-Json_Token previous(const Parser_State *parser)
-{
-    return parser->tokens.ptr[parser->curr - 1];
-}
-
-bool check(const Parser_State *parser, Json_Token_Kind kind)
-{
-    if (parser->had_error || is_at_end(parser)) {
-        return false;
-    }
-
-    return peek(parser).kind == kind;
-}
-
-// JSON:                      OBJECT
-// OBJECT:                    '{' OBJECT_KEY_VALUE_PAIRS? '}'
-// OBJECT_KEY_VALUE_PAIRS:    KEY ':' VALUE (',' OBJECT_KEY_VALUE_PAIRS)*
-// KEY:                       STRING
-// VALUE:                     STRING | NUMBER | ARRAY | OBJECT
-// ARRAY:                     '[' ARRAY_ITEMS? ']'
-// ARRAY_ITEMS:               VALUE (',' VALUE)*
-
-void parse_error(Parser_State *parser, const char *what_parser_expected)
-{
-    Json_Token found = peek(parser);
-    advance(parser);
-    parser->had_error = true;
-    printf(
-            "%s, But found: '%.*s' At line: %zu column: %zu\n",
-            what_parser_expected,
-            (int)found.lexeme.length,
-            found.lexeme.ptr,
-            found.line,
-            found.column
-          );
-}
-
-Json_Value *json_parse_array(Parser_State *parser)
-{
-    if (!match(parser, TOKEN_KIND_OPEN_BRACKET)) {
-        parse_error(parser, "Expected '['");
-        return NULL;
-    }
-
-
-    Json_Value_Array array = z_array_new(parser->pool, Json_Value_Array);
-
-    do {
-        z_array_push_back(&array, json_parse_value(parser));
-    } while (match(parser, TOKEN_KIND_COMMA));
-
-    if (!match(parser, TOKEN_KIND_CLOSE_BRACKET)) {
-        parse_error(parser, "Expected ']'");
-        return NULL;
-    }
-
-    return create_json_item_array(parser, array);
-}
-
-Json_Value *json_parse_value(Parser_State *parser)
-{
-    if (check(parser, TOKEN_KIND_OPEN_BRACE)) return json_parse_object(parser);
-    if (match(parser, TOKEN_KIND_NUMBER)) return create_json_item_number(parser, previous(parser).number);
-    if (match(parser, TOKEN_KIND_BOOLEAN)) return create_json_item_boolean(parser, previous(parser).boolean);
-    if (match(parser, TOKEN_KIND_STRING)) return create_json_item_string(parser, previous(parser).lexeme);
-    if (match(parser, TOKEN_KIND_NULL)) return create_json_item_null(parser);
-    if (check(parser, TOKEN_KIND_OPEN_BRACKET)) return json_parse_array(parser);
-
-    parse_error(parser, "Expected: string | number | boolean | array | object");
-    return NULL;
-}
-
-void json_parse_key_value_pairs(Parser_State *parser, Z_Hash_Table *key_value_pairs)
-{
-    if (check(parser, TOKEN_KIND_CLOSE_BRACE)) {
-        return;
-    }
-
-    if (!check(parser, TOKEN_KIND_STRING)) {
-        parse_error(parser, "Expected key");
-        return;
-    }
-
-    Json_Token key = advance(parser);
-
-    if (!match(parser, TOKEN_KIND_COLON)) {
-        parse_error(parser, "Expected ':'");
-        return;
-    }
-
-    Json_Value *value = json_parse_value(parser);
-
-    if (value == NULL) {
-        return;
-    }
-
-    z_hash_table_put(key_value_pairs, z_sv_to_cstr(parser->pool, key.lexeme), value);
-
-    if (match(parser, TOKEN_KIND_COMMA)) {
-        json_parse_key_value_pairs(parser, key_value_pairs);
-    }
-}
-
-Json_Value *json_parse_object(Parser_State *parser)
-{
-    if (!match(parser, TOKEN_KIND_OPEN_BRACE)) {
-        parse_error(parser, "Expected '{'");
-        return NULL;
-    }
-
-    Z_Hash_Table key_value_pairs = z_hash_table_new(parser->pool, z_str_equal, z_str_hash);
-
-    json_parse_key_value_pairs(parser, &key_value_pairs);
-
-    if (!match(parser, TOKEN_KIND_CLOSE_BRACE)) {
-        parse_error(parser, "Expected '}'");
-        return NULL;
-    }
-
-    return create_json_item_object(parser, key_value_pairs);
-}
-
-Json_Value *json_parse(Z_Pool *pool, Json_Token_Array tokens)
-{
-    Parser_State parser = create_parser(pool, tokens);
-
-    if (check(&parser, TOKEN_KIND_OPEN_BRACE)) return json_parse_object(&parser);
-    if (check(&parser, TOKEN_KIND_OPEN_BRACKET)) return json_parse_array(&parser);
-    return NULL;
+    return json_parse_value(&parser);
 }

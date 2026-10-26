@@ -35,24 +35,24 @@ void print_json_value(Json_Value *value, int level, int indentation)
 {
     switch (value->kind)
     {
-        case JSON_VALUE_KIND_NUMBER:
+        case JSON_VALUE_NUMBER:
             printf("%g", value->number);
             break;
-        case JSON_VALUE_KIND_BOOLEAN:
+        case JSON_VALUE_BOOLEAN:
             printf(value->boolean ? "true" : "false");
             break;
-        case JSON_VALUE_KIND_NULL:
+        case JSON_VALUE_NULL:
             printf("null");
             break;
-        case JSON_VALUE_KIND_STRING:
+        case JSON_VALUE_STRING:
             printf("\"");
-            z_sv_print(value->string);
+            z_sv_print(z_sv(value->string));
             printf("\"");
             break;
-        case JSON_VALUE_KIND_ARRAY:
+        case JSON_VALUE_ARRAY:
             print_json_array(value->array, level, indentation);
             break;
-        case JSON_VALUE_KIND_OBJECT:
+        case JSON_VALUE_OBJECT:
             print_json_object(value, level, indentation);
             break;
     }
@@ -62,13 +62,13 @@ void print_json_object(Json_Value *json, int level, int indentation)
 {
     Z_Pool_Auto pool = {0};
 
-    if (z_hash_table_size(&json->record) == 0) {
+    if (z_hash_table_size(&json->object) == 0) {
         printf("{}");
         return;
     }
 
     Z_Pair pair;
-    Z_Hash_Table_Iter iter = z_hash_table_iter(&json->record);
+    Z_Hash_Table_Iter iter = z_hash_table_iter(&json->object);
 
     size_t i = 1;
 
@@ -79,7 +79,7 @@ void print_json_object(Json_Value *json, int level, int indentation)
         printf("\"%s\": ", (char *)pair.key);
         print_json_value(pair.value, level + 1, indentation);
 
-        if (i != z_hash_table_size(&json->record)) {
+        if (i != z_hash_table_size(&json->object)) {
             printf(",");
         }
 
