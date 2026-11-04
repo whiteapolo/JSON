@@ -1,5 +1,5 @@
 CC := cc
-CFLAGS := -Wall -Wextra -O3
+CFLAGS := -Wall -Wextra
 
 all: build
 
