@@ -1,17 +1,13 @@
 CC := cc
 CFLAGS := -Wall -Wextra -O3
-DEP := $(wildcard src/*.c src/*.h)
 
-all: exe
+all: build
 
-zlib:
-	make -C zlib
-
-exe: $(DEP) zlib
-	cc $(CFLAGS) src/main.c zlib/build/libzatar.a -o exe -lm
+build:
+	cc $(CFLAGS) src/main.c zlib/src/all.c -o exe -lm
 
 clean:
 	make clean -C zlib
 	rm -f exe
 
-.PHONY: zlib all clean
+.PHONY: zlib all clean build

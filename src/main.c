@@ -17,7 +17,6 @@
 
 int main(void)
 {
-    Z_Time start = z_time();
     Z_Pool_Auto pool = {0};
     Z_String content = z_str_new(&pool, "");
 
@@ -25,6 +24,8 @@ int main(void)
         z_perror("Cannot read json file");
         return 1;
     }
+
+    Z_Time start = z_time();
 
     Json_Lexer_Result lexer_result = json_lex(&pool, z_sv(content));
 
@@ -35,12 +36,12 @@ int main(void)
     // json_print_tokens(lexer_result.tokens);
 
     Json_Value *json = json_parse(&pool, lexer_result.tokens);
+    z_time_print_elapsed_mseconds(start);
     printf("%p\n", json);
 
-    z_time_print_elapsed_mseconds(start);
 
     if (json) {
-        print_json(json);
+        // print_json(json);
     }
 
     return 0;
