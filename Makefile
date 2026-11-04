@@ -1,10 +1,10 @@
 CC := cc
-CFLAGS := -Wall -Wextra
+CFLAGS := -Wall -Wextra -lm -O3
 
 all: build
 
 build:
-	cc $(CFLAGS) src/main.c zlib/src/all.c -o exe -lm
+	cc $(CFLAGS) src/main.c zlib/src/all.c -o exe
 
 clean:
 	make clean -C zlib

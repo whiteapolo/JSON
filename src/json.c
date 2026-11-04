@@ -3,6 +3,7 @@
 #include "../zlib/include/time.h"
 #include <stdalign.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -246,19 +247,38 @@ Json_Value json_parse_array(Parser_State *parser)
         z_scanner_skip_spaces(&parser->scanner);
     } while (z_scanner_match(&parser->scanner, ','));
 
-    Json_Value value = json_parse_value(parser);
-
-    if (parser->had_error) {
-        return JSON_DUMMY;
-    }
-
-    z_array_push_back(&array, value);
-
     if (!z_scanner_match(&parser->scanner, ']')) {
         return json_error(parser, "Expected ']'");
     }
 
     return json_create_array(array);
+}
+
+void json_parse_object_entry(Parser_State *parser, Z_Hash_Table *object)
+{
+    z_scanner_skip_spaces(&parser->scanner);
+    Json_Value key = json_parse_string(parser);
+
+    if (parser->had_error) {
+        return;
+    }
+
+    z_scanner_skip_spaces(&parser->scanner);
+
+    if (!z_scanner_match(&parser->scanner, ':')) {
+        json_error(parser, "Expected ':'");
+        return;
+    }
+
+    z_scanner_skip_spaces(&parser->scanner);
+
+    Json_Value value = json_parse_value(parser);
+
+    if (parser->had_error) {
+        return;
+    }
+
+    z_hash_table_put(object, key.string.ptr, z_pool_memory_duplicate(parser->pool, &value, sizeof(Json_Value)));
 }
 
 Json_Value json_parse_object(Parser_State *parser)
@@ -280,52 +300,14 @@ Json_Value json_parse_object(Parser_State *parser)
     }
 
     do {
-        z_scanner_skip_spaces(&parser->scanner);
-        Json_Value key = json_parse_string(parser);
+        json_parse_object_entry(parser, &object);
 
         if (parser->had_error) {
             return JSON_DUMMY;
         }
 
-        z_scanner_skip_spaces(&parser->scanner);
-
-        if (!z_scanner_match(&parser->scanner, ':')) {
-            return json_error(parser, "Expected ':'");
-        }
-
-        z_scanner_skip_spaces(&parser->scanner);
-
-        Json_Value value = json_parse_value(parser);
-
-        if (parser->had_error) {
-            return JSON_DUMMY;
-        }
-
-        z_hash_table_put(&object, key.string.ptr, z_pool_memory_duplicate(parser->pool, &value, sizeof(Json_Value)));
         z_scanner_skip_spaces(&parser->scanner);
     } while (z_scanner_match(&parser->scanner, ','));
-
-    Json_Value key = json_parse_string(parser);
-
-    if (parser->had_error) {
-        return JSON_DUMMY;
-    }
-
-    z_scanner_skip_spaces(&parser->scanner);
-
-    if (!z_scanner_match(&parser->scanner, ':')) {
-        return json_error(parser, "Expected ':'");
-    }
-
-    z_scanner_skip_spaces(&parser->scanner);
-
-    Json_Value value = json_parse_value(parser);
-
-    if (parser->had_error) {
-        return JSON_DUMMY;
-    }
-
-    z_hash_table_put(&object, key.string.ptr, z_pool_memory_duplicate(parser->pool, &value, sizeof(Json_Value)));
 
     if (!z_scanner_match(&parser->scanner, '}')) {
         return json_error(parser, "Expected '}'");
@@ -345,8 +327,6 @@ Json_Value json_parse_value(Parser_State *parser)
     if (z_scanner_is_at_end(&parser->scanner)) {
         return json_error(parser, "Expected expression, got end of file");
     }
-
-    z_scanner_reset_mark(&parser->scanner);
 
     switch (z_scanner_peek(&parser->scanner)) {
         case '"': return json_parse_string(parser);
